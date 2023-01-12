@@ -1,6 +1,6 @@
 use {
+    cast_server::{config::Configuration, Result},
     dotenv::dotenv,
-    rust_http_starter::{config::Configuration, Result},
     tokio::sync::broadcast,
 };
 
@@ -10,5 +10,5 @@ async fn main() -> Result<()> {
     dotenv().ok();
 
     let config = Configuration::new().expect("Failed to load config!");
-    rust_http_starter::bootstap(shutdown, config).await
+    cast_server::bootstap(shutdown, config).await
 }

@@ -101,7 +101,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
 
         opentelemetry::global::set_meter_provider(meter_provider.provider());
 
-        let meter = opentelemetry::global::meter("rust-http-starter");
+        let meter = opentelemetry::global::meter("cast-server");
         let example_counter = meter
             .i64_up_down_counter("example")
             .with_description("This is an example counter")

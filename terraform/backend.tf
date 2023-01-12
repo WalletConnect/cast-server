@@ -27,7 +27,7 @@ terraform {
     region               = "eu-central-1"
     bucket               = "opz"
     workspace_key_prefix = "infra/env"
-    key                  = "apps/rust-http-starter.tfstate"
+    key                  = "apps/cast-server.tfstate"
 
     force_path_style = true
   }

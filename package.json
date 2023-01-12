@@ -1,5 +1,5 @@
 {
-  "name": "rust-http-starter-integration-tests",
+  "name": "cast-server-integration-tests",
   "version": "1.0.0",
   "description": "Integration tests for Rust HTTP Starter",
   "scripts": {

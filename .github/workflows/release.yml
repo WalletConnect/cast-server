@@ -94,9 +94,9 @@ jobs:
         if: github.event_name == 'release'
         with:
           images: |
-            ${{ steps.login-ecr.outputs.registry }}/rust-http-starter
-            ghcr.io/walletconnect/rust-http-starter
-            walletconnect/rust-http-starter,enable=false
+            ${{ steps.login-ecr.outputs.registry }}/cast-server
+            ghcr.io/walletconnect/cast-server
+            walletconnect/cast-server,enable=false
           flavor: |
             latest=auto
           tags: |

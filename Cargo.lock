@@ -280,6 +280,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "cast-server"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "build-info",
+ "build-info-build",
+ "dotenv",
+ "envy",
+ "hyper",
+ "log",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "reqwest",
+ "serde",
+ "sqlx",
+ "test-context",
+ "thiserror",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1655,33 +1682,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "winreg",
-]
-
-[[package]]
-name = "rust-http-starter"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "build-info",
- "build-info-build",
- "dotenv",
- "envy",
- "hyper",
- "log",
- "opentelemetry",
- "opentelemetry-otlp",
- "reqwest",
- "serde",
- "sqlx",
- "test-context",
- "thiserror",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
 ]
 
 [[package]]

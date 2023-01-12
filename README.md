@@ -1,17 +1,10 @@
-# Rust HTTP Server Starter
+# Cast Server
 
-This is a templated based on [Echo Server](https://github.com/WalletConnect/echo-server) and [Bat Cave](https://github.com/WalletConnect/bat-cave) that
-contains the basic setup of a rust HTTP Server with telemetry and a postgres database.
 
-There is also a basic terraform config included to be built upon.
+[Cast Server Specs](https://docs.walletconnect.com/2.0/specs/servers/cast/cast-server-api)
+[Current documentation](https://docs.walletconnect.com/2.0/specs/servers/cast/cast-server-api)
 
-This project also includes the standard CI/CD:
-- Release
-- Rust CI
-- Terraform CI
-- CD
-- Intake
-- Mocha (NodeJS) based integration tests
+
 
 ## Running the app
 
@@ -23,15 +16,14 @@ This project also includes the standard CI/CD:
 
 
 ## Required Values to Change
-Any reference to `rust-http-starter` should be changed to your project name as well as all the below list:
 
-- [ ] `README.md`
+- [x] `README.md`
   Replace this file with a Readme for your project
-- [ ] `Cargo.toml`
+- [x] `Cargo.toml`
   Change package name and authors, then build the project to re-gen the `Cargo.lock`
-- [ ] `/terraform/main.tf`
+- [x] `/terraform/main.tf`
   Change `app_name` to the repo's name
-- [ ] `/terraform/main.tf`
+- [x] `/terraform/main.tf`
   Setup a new hosted zone in the [infra repository](https://github.com/WalletConnect/infra/blob/master/terraform/main.tf#L123)
 - [ ] `/terraform/variables.tf`
   Change the default value of `public_url`
@@ -45,7 +37,7 @@ Any reference to `rust-http-starter` should be changed to your project name as w
   Change any references to Rust HTTP Starter\
 - [ ] `/.github/workflows/release.yml`
   On line 95-97 there are references to the registry name on ECR/GHCR ensure you change this
-- [ ] `/.github/integration/integration.tests.ts`
+- [x] `/.github/integration/integration.tests.ts`
   Update the URLs
 
 ### WalletConnect Specific

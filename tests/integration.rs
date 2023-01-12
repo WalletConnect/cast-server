@@ -12,5 +12,5 @@ pub enum TestError {
     Elapsed(#[from] tokio::time::error::Elapsed),
 
     #[error(transparent)]
-    RustHttpStarter(#[from] rust_http_starter::error::Error),
+    RustHttpStarter(#[from] cast_server::error::Error),
 }
