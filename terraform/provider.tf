@@ -9,7 +9,7 @@ provider "aws" {
   skip_requesting_account_id  = true
 
   default_tags {
-    tags = module.tags.tags
+    tags = module.this.tags
   }
 }
 
