@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  get-version:
+  # get-version:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.clean_version.outputs.version }}
@@ -54,8 +54,8 @@ jobs:
     environment:
       name: infra/staging
       url: https://staging.cast.walletconnect.com/health
-    needs:
-      - get-version
+    # needs:
+    #   - get-version
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -95,7 +95,7 @@ jobs:
         env:
           GRAFANA_AUTH: ${{ steps.get-grafana-key.outputs.key }}
           TF_VAR_grafana_endpoint: ${{ steps.get-grafana-details.outputs.endpoint }}
-          TF_VAR_image_version: ${{ needs.get-version.outputs.version }}
+          # TF_VAR_image_version: ${{ needs.get-version.outputs.version }}
         with:
           environment: staging
 
