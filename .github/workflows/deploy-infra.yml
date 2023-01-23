@@ -15,17 +15,19 @@ on:
       environment_url:
         description: 'the URL of the environment'
         required: true
+        type: string
         default: https://cast.walletconnect.com/health
   workflow_call:
     inputs:
       environment:
         description: 'the environment to deploy to'
         required: true
-        default: 'staging'
         type: string
+        default: 'staging'
       environment_url:
         description: 'the URL of the environment'
         required: true
+        type: string
         default: https://cast.walletconnect.com/health
 
 jobs:
