@@ -33,12 +33,12 @@ pub async fn handler(
     let insert_data = ClientData {
         id: data.account.0.clone(), // format!("{}:{}", project_id, data.account.0)?,
         // TODO: This needs auth so that malicious user cannot add client's to other projects
-        project_id: project_id.to_string(), // project_id.to_string(),
+        // project_id: project_id.to_string(), // project_id.to_string(),
         relay_url: data.relay_url,
         sym_key: data.sym_key,
     };
 
-    db.collection::<ClientData>("clients")
+    db.collection::<ClientData>(project_id)
         .insert_one(insert_data, None)
         .await
         .unwrap();
