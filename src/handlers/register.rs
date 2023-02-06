@@ -16,6 +16,7 @@ use {
 pub struct RegisterBody {
     account: Account,
     #[serde(rename = "relayUrl")]
+    #[serde(default = "default_relay_url")]
     relay_url: String,
     #[serde(rename = "symKey")]
     sym_key: String,
@@ -26,7 +27,7 @@ pub async fn handler(
     State(state): State<Arc<AppState>>,
     Json(data): Json<RegisterBody>,
 ) -> impl IntoResponse {
-    let db = state.example_store.clone().database("cast");
+    let db = state.example_store.clone();
 
     let project_id = headers.get("Auth").unwrap().to_str().unwrap();
 
@@ -47,4 +48,8 @@ pub async fn handler(
         StatusCode::OK,
         format!("Successfully registered user {}", data.account.0),
     )
+}
+
+fn default_relay_url() -> String {
+    "wss://relay.walletconnect.com".to_string()
 }

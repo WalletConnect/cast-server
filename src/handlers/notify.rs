@@ -77,7 +77,7 @@ pub async fn handler(
     State(state): State<Arc<AppState>>,
     Json(cast_args): Json<CastArgs>,
 ) -> impl IntoResponse {
-    let db = state.example_store.clone().database("cast");
+    let db = state.example_store.clone();
 
     let project_id = headers.get("Auth").unwrap().to_str().unwrap();
 
