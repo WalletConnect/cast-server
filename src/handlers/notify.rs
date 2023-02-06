@@ -1,6 +1,11 @@
 use {
     super::Account,
-    crate::{auth::jwt_token, error::Error, handlers::ClientData, state::AppState},
+    crate::{
+        auth::jwt_token,
+        error::{self, Error},
+        handlers::ClientData,
+        state::AppState,
+    },
     axum::{extract::State, http::StatusCode, response::IntoResponse, Json},
     base64::Engine,
     chacha20poly1305::{
@@ -76,7 +81,8 @@ pub async fn handler(
     headers: HeaderMap,
     State(state): State<Arc<AppState>>,
     Json(cast_args): Json<CastArgs>,
-) -> impl IntoResponse {
+) -> Result<axum::response::Response, error::Error> {
+    // impl IntoResponse {
     let db = state.example_store.clone();
 
     let project_id = headers.get("Auth").unwrap().to_str().unwrap();
@@ -97,8 +103,7 @@ pub async fn handler(
             doc! { "_id": {"$in": &accounts}},
             None,
         )
-        .await
-        .unwrap();
+        .await?;
 
     let mut not_found: HashSet<String> = accounts.into_iter().collect();
 
@@ -194,7 +199,7 @@ pub async fn handler(
     };
     let response_json = serde_json::to_string(&response).unwrap();
 
-    (StatusCode::OK, response_json)
+    Ok((StatusCode::OK, response_json).into_response())
 }
 
 #[cfg(test)]

@@ -4,7 +4,7 @@ use {
     axum::{
         extract::{Json, State},
         http::StatusCode,
-        response::IntoResponse,
+        response::{IntoResponse, Response},
     },
     hyper::HeaderMap,
     serde::{Deserialize, Serialize},
@@ -26,7 +26,7 @@ pub async fn handler(
     headers: HeaderMap,
     State(state): State<Arc<AppState>>,
     Json(data): Json<RegisterBody>,
-) -> impl IntoResponse {
+) -> Result<axum::response::Response, crate::error::Error> {
     let db = state.example_store.clone();
 
     let project_id = headers.get("Auth").unwrap().to_str().unwrap();
@@ -41,13 +41,13 @@ pub async fn handler(
 
     db.collection::<ClientData>(project_id)
         .insert_one(insert_data, None)
-        .await
-        .unwrap();
+        .await?;
 
-    (
+    Ok((
         StatusCode::OK,
         format!("Successfully registered user {}", data.account.0),
     )
+        .into_response())
 }
 
 fn default_relay_url() -> String {
