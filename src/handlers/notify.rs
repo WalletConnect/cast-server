@@ -38,37 +38,44 @@ pub struct NotifyBody {
     pub accounts: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
-struct SendFailure {
-    account: String,
-    reason: String,
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
+pub struct SendFailure {
+    pub account: String,
+    pub reason: String,
 }
 
 #[derive(Serialize)]
-#[repr(C)]
-struct Envelope<'a> {
-    envelope_type: u8,
-    iv: [u8; 12],
-    sealbox: &'a [u8],
+pub struct Envelope {
+    pub envelope_type: u8,
+    pub iv: [u8; 12],
+    pub sealbox: Vec<u8>,
 }
 
-impl<'a> Envelope<'a> {
-    fn to_bytes(&self) -> Vec<u8> {
+impl Envelope {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut serialized = vec![];
         serialized.push(self.envelope_type);
         serialized.extend_from_slice(&self.iv);
-        serialized.extend_from_slice(self.sealbox);
+        serialized.extend_from_slice(&self.sealbox);
         serialized
+    }
+
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+        Self {
+            envelope_type: bytes[0],
+            iv: bytes[1..13].try_into().unwrap(),
+            sealbox: bytes[13..].to_vec(),
+        }
     }
 }
 
 // Change String to Account
 // Change String to Error
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Response {
-    sent: HashSet<String>,
-    failed: HashSet<SendFailure>,
-    not_found: HashSet<String>,
+    pub sent: HashSet<String>,
+    pub failed: HashSet<SendFailure>,
+    pub not_found: HashSet<String>,
 }
 
 pub async fn handler(
@@ -135,7 +142,7 @@ pub async fn handler(
             let envelope = Envelope {
                 envelope_type: 0,
                 iv: nonce.into(),
-                sealbox: &encrypted,
+                sealbox: encrypted,
             };
 
             envelope.to_bytes()
@@ -239,17 +246,4 @@ pub async fn handler(
     }
 
     Ok((StatusCode::OK, Json(response)).into_response())
-}
-
-#[cfg(test)]
-mod tests {
-    use {chacha20poly1305::KeyInit, std::collections::HashSet};
-
-    #[test]
-    fn generate_proper_key() {
-        let test =
-            chacha20poly1305::ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng {});
-        let hex = hex::encode(test);
-        dbg!(hex);
-    }
 }

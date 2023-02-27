@@ -9,7 +9,15 @@ use {
     tokio::{select, sync::mpsc},
     tokio_stream::wrappers::ReceiverStream,
     tungstenite::Message,
-    walletconnect_sdk::rpc::rpc::{Params, Payload, Publish, Request, RequestPayload, Subscribe},
+    walletconnect_sdk::rpc::rpc::{
+        Params,
+        Payload,
+        Publish,
+        Request,
+        RequestPayload,
+        Subscribe,
+        Unsubscribe,
+    },
 };
 
 type MessageId = String;
@@ -31,29 +39,39 @@ impl WsClient {
         Ok(())
     }
 
-    pub async fn send(&mut self, msg: Request) {
+    pub async fn send(&mut self, msg: Request) -> Result<()> {
         self.send_raw(Payload::Request(msg)).await
     }
 
-    pub async fn send_raw(&mut self, msg: Payload) {
+    pub async fn send_raw(&mut self, msg: Payload) -> Result<()> {
         let msg = serde_json::to_string(&msg).unwrap();
-        self.tx.send(Message::Text(msg)).await.unwrap()
+        self.tx
+            .send(Message::Text(msg))
+            .await
+            .map_err(|_| crate::error::Error::ChannelClosed)
     }
 
     pub async fn recv(&mut self) -> Result<Payload> {
         let msg = self.rx.recv().await.unwrap().unwrap();
         // dbg!(&msg);
         match msg {
-            Message::Text(msg) => {
-                // dbg!(Value::from_str(&msg).unwrap());
-
-                Ok(serde_json::from_str(&msg).unwrap())
+            Message::Text(msg) => Ok(serde_json::from_str(&msg).unwrap()),
+            e => {
+                dbg!(e);
+                Err(crate::error::Error::RecvError)
             }
-            _ => Err(crate::error::Error::RecvError),
         }
     }
 
-    pub async fn publish(&mut self, topic: &str, payload: &str) {
+    async fn pong(&mut self) -> Result<()> {
+        let msg = Message::Pong("heartbeat".into());
+        self.tx
+            .send(msg)
+            .await
+            .map_err(|_| crate::error::Error::ChannelClosed)
+    }
+
+    pub async fn publish(&mut self, topic: &str, payload: &str) -> Result<()> {
         let msg = Payload::Request(new_rpc_request(
             walletconnect_sdk::rpc::rpc::Params::Publish(Publish {
                 topic: topic.into(),
@@ -64,14 +82,22 @@ impl WsClient {
             }),
         ));
 
-        self.send_raw(msg).await;
+        self.send_raw(msg).await
     }
 
-    pub async fn subscribe(&mut self, topic: &str) {
+    pub async fn subscribe(&mut self, topic: &str) -> Result<()> {
         let msg = Payload::Request(new_rpc_request(Params::Subscribe(Subscribe {
             topic: topic.into(),
         })));
-        self.send_raw(msg).await;
+        self.send_raw(msg).await
+    }
+
+    pub async fn unsubscribe(&mut self, topic: &str, subscription_id: &str) -> Result<()> {
+        let msg = Payload::Request(new_rpc_request(Params::Unsubscribe(Unsubscribe {
+            topic: topic.into(),
+            subscription_id: subscription_id.into(),
+        })));
+        self.send_raw(msg).await
     }
 }
 
@@ -158,7 +184,7 @@ mod test {
     #[tokio::test]
     async fn test() {
         // let relay_url = "wss://staging.relay.walletconnect.com";
-        let relay_url = "ws://localhost:8080";
+        let relay_url = "wss:/relay.walletconnect.com";
         let jwt_url = "wss://relay.walletconnect.com";
 
         let key =
@@ -220,15 +246,21 @@ mod test {
         let mut client = connect(&relay_url, project_id2, jwt.clone()).await.unwrap();
 
         client
-            .subscribe("1df17af05005c84e6e29337de84ec4ffce46702e582dfbf2277b71ce64c61311")
+            .subscribe("22f22d9bb8cc69cb64fb7998175e9823df5467c64783cee4af9df0b5e2522e82")
             .await;
 
-        client
-            .publish(
-                "1df17af05005c84e6e29337de84ec4ffce46702e582dfbf2277b71ce64c61311",
-                "AARMPnqHRFz14/0itwGhld5C3Kpue1WicnQgKY06PmcKpiAxh/JFVgENknNBhv5XIXulUpihKjqrE62Um7/E/UY7obbBrQNiJtsG5RY4J1tySIgZAXjLkSvp0Vqz2bCh7DaGa7DziGgd9rp1sTdUCYsyM3IVpK4T3IpaKlHkjoBzueKO2ePHYFiutiEv2RJcBJp9llSat8jT9NykN9++dQAeAPxW4w==",
-            )
-            .await;
+        dbg!(client.recv().await);
+        dbg!(client.recv().await);
+        dbg!(client.recv().await);
+        dbg!(client.recv().await);
+        dbg!(client.recv().await);
+
+        // client
+        //     .publish(
+        //         "1df17af05005c84e6e29337de84ec4ffce46702e582dfbf2277b71ce64c61311",
+        //         "AARMPnqHRFz14/0itwGhld5C3Kpue1WicnQgKY06PmcKpiAxh/JFVgENknNBhv5XIXulUpihKjqrE62Um7/E/UY7obbBrQNiJtsG5RY4J1tySIgZAXjLkSvp0Vqz2bCh7DaGa7DziGgd9rp1sTdUCYsyM3IVpK4T3IpaKlHkjoBzueKO2ePHYFiutiEv2RJcBJp9llSat8jT9NykN9++dQAeAPxW4w==",
+        //     )
+        //     .await;
 
         // if let Payload::Response(response) = client.recv().await.unwrap() {
         //     if let Response::Success(response) = response {

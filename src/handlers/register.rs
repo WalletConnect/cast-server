@@ -39,6 +39,7 @@ pub async fn handler(
     // Test the key
     let key = hex::decode(data.sym_key.clone())?;
     chacha20poly1305::ChaCha20Poly1305::new(GenericArray::from_slice(&key));
+    dbg!(sha256::digest(&*key));
 
     // Construct documentDB entry
     let insert_data = ClientData {
