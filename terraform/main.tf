@@ -116,8 +116,10 @@ module "vpc" {
 module "o11y" {
   source = "./monitoring"
 
-  app_name = local.app_name
+  app_name                = "${terraform.workspace}-${local.app_name}"
   prometheus_workspace_id = aws_prometheus_workspace.prometheus.id
+  load_balancer_arn       = module.ecs.load_balancer_arn
   environment             = terraform.workspace
+  document_db_cluster_id  = module.keystore-docdb.cluster_id
 }
 

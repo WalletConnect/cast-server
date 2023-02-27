@@ -109,7 +109,6 @@ pub async fn handler(
         .find(doc! { "_id": {"$in": &accounts}}, None)
         .await?;
 
-    let amount_of_accounts = accounts.len();
     let mut not_found: HashSet<String> = accounts.into_iter().collect();
 
     let mut clients = HashMap::<String, Vec<(String, String)>>::new();
@@ -220,30 +219,42 @@ pub async fn handler(
         }
     }
 
-    // Get them into one struct and serialize as json
-    let response = Response {
-        sent: confirmed_sends,
-        failed: failed_sends,
-        not_found,
-    };
-
     if let Some(metrics) = &state.metrics {
         let ctx = Context::current();
         metrics
             .dispatched_notifications
-            .record(&ctx, amount_of_accounts as u64, &[
-                KeyValue::new("sent", response.sent.len() as i64),
-                KeyValue::new("failed", response.failed.len() as i64),
-                KeyValue::new("not_found", response.not_found.len() as i64),
+            .add(&ctx, confirmed_sends.len() as u64, &[
+                KeyValue::new("type", "sent"),
+                KeyValue::new("project_id", project_id.clone()),
+            ]);
+
+        metrics
+            .dispatched_notifications
+            .add(&ctx, failed_sends.len() as u64, &[
+                KeyValue::new("type", "failed"),
+                KeyValue::new("project_id", project_id.clone()),
+            ]);
+
+        metrics
+            .dispatched_notifications
+            .add(&ctx, not_found.len() as u64, &[
+                KeyValue::new("type", "not_found"),
+                KeyValue::new("project_id", project_id.clone()),
             ]);
 
         metrics
             .send_latency
             .record(&ctx, timer.elapsed().as_millis().try_into().unwrap(), &[
                 KeyValue::new("project_id", project_id),
-                KeyValue::new("amount_of_receivers", amount_of_accounts as i64),
             ])
     }
+
+    // Get them into one struct and serialize as json
+    let response = Response {
+        sent: confirmed_sends,
+        failed: failed_sends,
+        not_found,
+    };
 
     Ok((StatusCode::OK, Json(response)).into_response())
 }

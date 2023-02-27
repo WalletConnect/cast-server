@@ -2,6 +2,34 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.13.1 - 2023-02-22
+#### Bug Fixes
+- tests - (a7806fa) - Rakowskiii
+- formatting - (aa369a9) - Rakowskiii
+- fix naming from httpstarter - (e3e4c6b) - Rakowskiii
+#### Miscellaneous Chores
+- remove unwrap. fix name in grafana. - (9a01bcc) - Rakowskiii
+- - -
+
+## v0.13.0 - 2023-02-22
+#### Features
+- add more fields to grafana - (f44bfea) - Rakowskiii
+#### Miscellaneous Chores
+- cleanup - (e34d513) - Rakowskiii
+- - -
+
+## v0.12.1 - 2023-02-22
+#### Bug Fixes
+- fixed terraform - (2f6e7d4) - Rakowskiii
+#### Miscellaneous Chores
+- add error logs for errors - (0676eb0) - Rakowskiii
+- - -
+
+## v0.12.0 - 2023-02-22
+#### Features
+- add grafana dashboard - (cbb192c) - Rakowskiii
+- - -
+
 ## v0.11.0 - 2023-02-14
 #### Features
 - add grafana - (7ba1f85) - Rakowskiii
