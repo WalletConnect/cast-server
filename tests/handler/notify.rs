@@ -20,7 +20,7 @@ async fn test_notify(ctx: &mut ServerContext) {
     let test_account_invalid_relay = "test_account_fail".to_owned();
 
     // Fix the url for register body
-    let relay_url = ctx.relay_url.replace("http", "ws");
+    let relay_url = ctx.relay_url.replace("http", "ws").trim().to_string();
 
     // Create valid account
     let body = RegisterBody {
@@ -39,9 +39,8 @@ async fn test_notify(ctx: &mut ServerContext) {
         .header("Content-Type", "application/json")
         .send()
         .await
-        .expect("Failed to call /register")
-        .status();
-    assert!(status.is_success());
+        .expect("Failed to call /register");
+    assert!(status.status().is_success());
 
     // Prepare invalid account
     let body = RegisterBody {
@@ -53,7 +52,7 @@ async fn test_notify(ctx: &mut ServerContext) {
     // Register account with invalid relay
     let status = client
         .post(format!(
-            "http://http://{}/{}/register",
+            "http://{}/{}/register",
             ctx.server.public_addr, ctx.project_id
         ))
         .body(serde_json::to_string(&body).unwrap())

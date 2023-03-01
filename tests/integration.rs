@@ -14,7 +14,6 @@ use {
         KeyInit,
     },
     rand::{rngs::StdRng, SeedableRng},
-    serde_json::Value,
     walletconnect_sdk::rpc::rpc::{Params, Payload},
 };
 

@@ -29,7 +29,7 @@ use {
         time::SystemTime,
     },
     tokio_stream::StreamExt,
-    tracing::{debug, info},
+    tracing::{debug, error},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -177,11 +177,10 @@ pub async fn handler(
 
     for (url, notifications) in clients {
         let token = jwt_token(&url, &state.keypair);
-        let relay_query = format!("auth={token}&projectId={project_id}");
+        let relay_query = format!("projectId={project_id}&auth={token}");
 
         let mut url = url::Url::parse(&url)?;
         url.set_query(Some(&relay_query));
-
         let mut connection = tungstenite::connect(&url);
 
         for notification_data in notifications {
@@ -195,7 +194,6 @@ pub async fn handler(
                             confirmed_sends.insert(sender);
                         }
                         Err(e) => {
-                            // failed_sends.insert((sender, e.to_string()));
                             failed_sends.insert(SendFailure {
                                 account: sender,
                                 reason: e.to_string(),
@@ -203,7 +201,8 @@ pub async fn handler(
                         }
                     };
                 }
-                Err(_) => {
+                Err(e) => {
+                    error!("{}", e);
                     failed_sends.insert(SendFailure {
                         account: sender,
                         reason: format!(
