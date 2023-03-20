@@ -96,8 +96,6 @@ async fn test_notify(ctx: &mut ServerContext) {
     let response: cast_server::handlers::notify::Response =
         serde_json::from_str(&response).unwrap();
 
-    dbg!(&response);
-
     assert_eq!(response.sent.len(), 1);
     assert_eq!(
         response.failed.into_iter().next().unwrap().account,

@@ -1,5 +1,6 @@
 use {
     crate::{
+        auth::jwt_token,
         error::{self},
         jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification, PublishParams},
         state::AppState,
@@ -180,7 +181,7 @@ pub async fn handler(
     }
 
     for (url, notifications) in clients {
-        let token = AuthToken::new(client_id.value().clone()).as_jwt(&state.keypair)?;
+        let token = jwt_token(&url, &state.keypair)?;
         let relay_query = format!("projectId={project_id}&auth={token}");
 
         let mut url = url::Url::parse(&url)?;
