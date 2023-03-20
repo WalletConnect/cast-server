@@ -37,8 +37,7 @@ async fn test_notify(ctx: &mut ServerContext) {
         .send()
         .await
         .expect("Failed to call /register");
-    dbg!(&status.text().await);
-    // assert!(status.status().is_success());
+    assert!(status.status().is_success());
 
     // Prepare invalid account
     let body = RegisterBody {
@@ -96,6 +95,8 @@ async fn test_notify(ctx: &mut ServerContext) {
 
     let response: cast_server::handlers::notify::Response =
         serde_json::from_str(&response).unwrap();
+
+    dbg!(&response);
 
     assert_eq!(response.sent.len(), 1);
     assert_eq!(
