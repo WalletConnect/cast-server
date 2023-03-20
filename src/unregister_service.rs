@@ -50,7 +50,6 @@ impl UnregisterService {
         })
     }
 
-    // Consider logging instead of returning from this
     pub async fn run(&mut self) -> Result<()> {
         loop {
             match self.client.handler.is_finished() {
