@@ -13,8 +13,8 @@ use {
         ChaCha20Poly1305,
         KeyInit,
     },
-    futures::{select, FutureExt},
-    mongodb::bson::doc,
+    futures::{executor, future, select, FutureExt, StreamExt},
+    mongodb::{bson::doc, Database},
     std::sync::Arc,
     tokio::sync::mpsc::Receiver,
     tracing::{error, info, warn},
@@ -60,7 +60,9 @@ impl UnregisterService {
                         &self.state.config.project_id,
                         jwt_token(&self.state.config.relay_url, &self.state.keypair)?,
                     )
-                    .await?;
+                    .await
+                    .unwrap();
+                    resubscribe(&self.state.database, &mut self.client).await?;
                 }
                 false => {
                     select! {
@@ -144,6 +146,9 @@ impl UnregisterService {
                                         jwt_token(&self.state.config.relay_url, &self.state.keypair)?,
                                     )
                                     .await?;
+
+                                    resubscribe(&self.state.database, &mut self.client).await?;
+
                                 }
                             }
 
@@ -155,4 +160,33 @@ impl UnregisterService {
             }
         }
     }
+}
+
+async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<()> {
+    // TODO: Sub to all
+    info!("Resubscribing to all topics");
+    // Get all topics from db
+    let cursor = database
+        .collection::<LookupEntry>("lookup_table")
+        .find(None, None)
+        .await?;
+
+    // Iterate over all topics and sub to them again using the _id field from each
+    // record
+    // Chunked into 500, as thats the max relay is allowing
+    cursor
+        .chunks(500)
+        .for_each(|chunk| {
+            let topics = chunk
+                .into_iter()
+                .filter_map(|x| x.ok())
+                .map(|x| x.topic)
+                .collect::<Vec<String>>();
+            if let Err(e) = executor::block_on(client.batch_subscribe(topics)) {
+                error!("Error resubscribing to topics: {}", e);
+            }
+            future::ready(())
+        })
+        .await;
+    Ok(())
 }

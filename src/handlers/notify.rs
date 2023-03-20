@@ -30,10 +30,6 @@ use {
     },
     tokio_stream::StreamExt,
     tracing::{error, info},
-    walletconnect_sdk::rpc::{
-        auth::AuthToken,
-        domain::{ClientId, DecodedClientId},
-    },
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -90,9 +86,6 @@ pub async fn handler(
     let timer = std::time::Instant::now();
     let db = state.database.clone();
     let mut rng = OsRng {};
-
-    let decoded_client_id = DecodedClientId(*state.keypair.public_key().as_bytes());
-    let client_id = ClientId::from(decoded_client_id);
 
     let mut confirmed_sends = HashSet::new();
     let mut failed_sends: HashSet<SendFailure> = HashSet::new();

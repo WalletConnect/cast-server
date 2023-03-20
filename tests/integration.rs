@@ -47,7 +47,8 @@ async fn cast_properly_sending_message() {
     // Generate valid JWT
     let mut rng = StdRng::from_entropy();
     let keypair = Keypair::generate(&mut rng);
-    let jwt = jwt_token(&relay_url, &keypair).unwrap();
+    let jwt = jwt_token("ws://127.0.0.1:8080", &keypair).unwrap();
+    dbg!(&jwt);
 
     // Set up clients
     let http_client = reqwest::Client::new();
