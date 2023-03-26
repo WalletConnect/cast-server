@@ -1,6 +1,6 @@
 use {
     crate::unregister_service::UnregisterService,
-    axum::{http, routing::post},
+    axum::{http, routing::post, ServiceExt},
     mongodb::options::{ClientOptions, ResolverConfig},
     rand::prelude::*,
     tower_http::{
@@ -125,7 +125,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
 
     select! {
         _ = axum::Server::bind(&private_addr).serve(private_app.into_make_service()) => info!("Terminating metrics service"),
-        _ = axum::Server::bind(&addr).serve(app.into_make_service()) => info!("Server terminating"),
+        _ = axum::Server::bind(&addr).serve(app.into_make_service_with_connect_info::<SocketAddr>()) => info!("Server terminating"),
         _ = shutdown.recv() => info!("Shutdown signal received, killing servers"),
         _ = unregister_service.run() => info!("Unregister service terminating"),
     }

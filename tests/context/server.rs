@@ -46,6 +46,11 @@ impl CastServer {
                     otel_exporter_otlp_endpoint: None,
                     telemetry_prometheus_port: Some(private_port),
                     relay_url: relay_url.replace("http", "ws"),
+                    analytics_enabled: false,
+                    analytics_s3_endpoint: None,
+                    analytics_export_bucket: None,
+                    analytics_geoip_db_bucket: None,
+                    analytics_geoip_db_key: None,
                 };
 
                 cast_server::bootstap(shutdown, config).await
