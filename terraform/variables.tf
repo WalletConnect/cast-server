@@ -41,3 +41,9 @@ variable "app_name" {
 variable "environment" {
   type = string
 }
+
+variable "geoip_db_key" {
+  description = "The key to the GeoIP database"
+  type        = string
+  default     = "GeoLite2-City.mmdb"
+}

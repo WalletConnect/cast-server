@@ -25,7 +25,7 @@ resource "grafana_data_source" "prometheus" {
   name = "${var.environment}-${var.app_name}-amp"
   url  = "https://aps-workspaces.eu-central-1.amazonaws.com/workspaces/${var.prometheus_workspace_id}/"
 
-  json_data {
+  json_data_encoded {
     http_method     = "GET"
     sigv4_auth      = true
     sigv4_auth_type = "workspace-iam-role"
@@ -37,7 +37,7 @@ resource "grafana_data_source" "cloudwatch" {
   type = "cloudwatch"
   name = "${var.environment}-${var.app_name}-cloudwatch"
 
-  json_data {
+  json_data_encoded {
     default_region = "eu-central-1"
   }
 }

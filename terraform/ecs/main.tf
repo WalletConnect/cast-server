@@ -69,7 +69,12 @@ resource "aws_ecs_task_definition" "app_task_definition" {
         { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://localhost:4317" },
         { name = "TELEMETRY_PROMETHEUS_PORT", value = "8081" },
         { name = "DATABASE_URL", value = var.mongo_address },
-        { name = "KEYPAIR_SEED", value = var.keypair_seed }
+        { name = "KEYPAIR_SEED", value = var.keypair_seed },
+        { name = "OTEL_TRACES_SAMPLER_ARG", value = tostring(var.telemetry_sample_ratio) },
+        { name = "ANALYTICS_ENABLED", value = "true" },
+        { name = "ANALYTICS_EXPORT_BUCKET", value = var.analytics_datalake_bucket_name },
+        { name = "ANALYTICS_GEOIP_DB_BUCKET", value = var.analytics_geoip_db_bucket_name },
+        { name = "ANALYTICS_GEOIP_DB_KEY", value = var.analytics_geoip_db_key },
       ],
       dependsOn = [
         { containerName = "aws-otel-collector", condition = "START" }

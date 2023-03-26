@@ -57,3 +57,23 @@ variable "cpu" {
 variable "memory" {
   type = number
 }
+
+variable "analytics_datalake_bucket_name" {
+  description = "The name of the bucket where the analytics data will be stored"
+  type        = string
+}
+
+variable "analytics_geoip_db_bucket_name" {
+  description = "The name of the bucket where the geoip database is stored"
+  type        = string
+}
+
+variable "analytics_geoip_db_key" {
+  description = "The key of the geoip database in the bucket"
+  type        = string
+}
+
+variable "analytics_key_arn" {
+  description = "The ARN of the KMS key used to encrypt the analytics data"
+  type        = string
+}

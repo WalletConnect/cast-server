@@ -42,6 +42,12 @@ pub enum Error {
 
     #[error("Failed to parse the keypair seed")]
     InvalidKeypairSeed,
+
+    #[error("GeoIpReader Error: {0}")]
+    GeoIpReader(String),
+
+    #[error("BatchCollector Error: {0}")]
+    BatchCollector(String),
 }
 
 impl IntoResponse for Error {

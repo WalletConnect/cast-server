@@ -7,7 +7,7 @@ use {
         types::ClientData,
     },
     axum::{
-        extract::{Path, State},
+        extract::{ConnectInfo, Path, State},
         http::StatusCode,
         response::IntoResponse,
         Json,
@@ -25,6 +25,7 @@ use {
     serde::{Deserialize, Serialize},
     std::{
         collections::{HashMap, HashSet},
+        net::SocketAddr,
         sync::Arc,
         time::SystemTime,
     },
@@ -79,6 +80,7 @@ pub struct Response {
 }
 
 pub async fn handler(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
     Json(cast_args): Json<NotifyBody>,
@@ -123,7 +125,6 @@ pub async fn handler(
             let cipher =
                 chacha20poly1305::ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
 
-            // TODO: proper nonce
             let nonce: GenericArray<u8, U12> =
                 GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
 
