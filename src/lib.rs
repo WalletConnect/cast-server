@@ -1,6 +1,6 @@
 use {
     crate::unregister_service::UnregisterService,
-    axum::{http, routing::post, ServiceExt},
+    axum::{http, routing::post},
     mongodb::options::{ClientOptions, ResolverConfig},
     rand::prelude::*,
     tower_http::{

@@ -80,7 +80,7 @@ pub struct Response {
 }
 
 pub async fn handler(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ConnectInfo(_addr): ConnectInfo<SocketAddr>,
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
     Json(cast_args): Json<NotifyBody>,
