@@ -42,7 +42,7 @@ impl CastServer {
                     log_level: "INFO".into(),
                     database_url: "mongodb://localhost:27017".into(),
                     project_id,
-                    keypair_seed: test_keypair_seed.into(),
+                    keypair_seed: test_keypair_seed,
                     is_test: true,
                     otel_exporter_otlp_endpoint: None,
                     telemetry_prometheus_port: Some(private_port),
@@ -60,7 +60,7 @@ impl CastServer {
         });
 
         if let Err(e) = wait_for_server_to_start(public_port, private_port).await {
-            panic!("Failed to start server with error: {:?}", e)
+            panic!("Failed to start server with error: {e:?}")
         }
 
         Self {
