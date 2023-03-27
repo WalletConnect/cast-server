@@ -39,7 +39,7 @@ impl UnregisterService {
         let client = wsclient::connect(
             &app_state.config.relay_url,
             &app_state.config.project_id,
-            jwt_token(&url, &app_state.keypair)?,
+            jwt_token(&url, &app_state.unregister_keypair)?,
         )
         .await?;
 
@@ -58,7 +58,7 @@ impl UnregisterService {
                     self.client = wsclient::connect(
                         &self.state.config.relay_url,
                         &self.state.config.project_id,
-                        jwt_token(&self.state.config.relay_url, &self.state.keypair)?,
+                        jwt_token(&self.state.config.relay_url, &self.state.unregister_keypair)?,
                     )
                     .await
                     .unwrap();
@@ -143,7 +143,7 @@ impl UnregisterService {
                                     self.client = wsclient::connect(
                                         &self.state.config.relay_url,
                                         &self.state.config.project_id,
-                                        jwt_token(&self.state.config.relay_url, &self.state.keypair)?,
+                                        jwt_token(&self.state.config.relay_url, &self.state.unregister_keypair)?,
                                     )
                                     .await?;
 

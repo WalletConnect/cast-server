@@ -33,6 +33,7 @@ impl CastServer {
 
         let project_id = std::env::var("PROJECT_ID").unwrap();
         let relay_url = std::env::var("RELAY_URL").unwrap();
+        let test_keypair_seed = std::env::var("TEST_KEYPAIR_SEED").unwrap();
 
         std::thread::spawn(move || {
             rt.block_on(async move {
@@ -41,7 +42,7 @@ impl CastServer {
                     log_level: "INFO".into(),
                     database_url: "mongodb://localhost:27017".into(),
                     project_id,
-                    keypair_seed: "1OWY_SEED_MAM_NADZIEJE_ZE_TERAZ_ZADZIAALA".into(),
+                    keypair_seed: test_keypair_seed.into(),
                     is_test: true,
                     otel_exporter_otlp_endpoint: None,
                     telemetry_prometheus_port: Some(private_port),

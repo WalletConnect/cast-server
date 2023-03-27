@@ -57,17 +57,20 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
             .database("cast"),
     );
 
-    let seed: [u8; 32] = config.keypair_seed.as_bytes()[..32]
+    let mut seed: [u8; 32] = config.keypair_seed.as_bytes()[..32]
         .try_into()
         .map_err(|_| error::Error::InvalidKeypairSeed)?;
     let mut seeded = StdRng::from_seed(seed);
+
     let keypair = Keypair::generate(&mut seeded);
+    seed.reverse();
+    let unregister_keypair = Keypair::generate(&mut seeded);
 
     // Create a channel for the unregister service
     let (unregister_tx, unregister_rx) = tokio::sync::mpsc::channel(100);
 
     // Creating state
-    let mut state = AppState::new(config, db, keypair, unregister_tx)?;
+    let mut state = AppState::new(config, db, keypair, unregister_keypair, unregister_tx)?;
 
     // Telemetry
     if state.config.telemetry_prometheus_port.is_some() {
