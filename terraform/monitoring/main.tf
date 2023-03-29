@@ -531,7 +531,7 @@ resource "grafana_dashboard" "at_a_glance" {
         {
           "datasource" : {
             "type" : "prometheus",
-            "uid" : grafana_data_source.prometheus.uid 
+            "uid" : grafana_data_source.prometheus.uid
           },
           "fieldConfig" : {
             "defaults" : {
@@ -605,7 +605,7 @@ resource "grafana_dashboard" "at_a_glance" {
             {
               "datasource" : {
                 "type" : "prometheus",
-                "uid" : grafana_data_source.prometheus.uid 
+                "uid" : grafana_data_source.prometheus.uid
               },
               "exemplar" : true,
               "expr" : "sum(increase(registered_clients[5m]))",
@@ -620,7 +620,7 @@ resource "grafana_dashboard" "at_a_glance" {
         {
           "datasource" : {
             "type" : "prometheus",
-            "uid" : grafana_data_source.prometheus.uid 
+            "uid" : grafana_data_source.prometheus.uid
           },
           "fieldConfig" : {
             "defaults" : {
@@ -697,7 +697,7 @@ resource "grafana_dashboard" "at_a_glance" {
             {
               "datasource" : {
                 "type" : "prometheus",
-                "uid" : grafana_data_source.prometheus.uid 
+                "uid" : grafana_data_source.prometheus.uid
               },
               "exemplar" : true,
               "expr" : "increase(dispatched_notifications{type=\"sent\"}[5m])",
@@ -752,7 +752,7 @@ resource "grafana_dashboard" "at_a_glance" {
           },
           "datasource" : {
             "type" : "prometheus",
-            "uid" : grafana_data_source.prometheus.uid 
+            "uid" : grafana_data_source.prometheus.uid
           },
           "fieldConfig" : {
             "defaults" : {
@@ -831,7 +831,7 @@ resource "grafana_dashboard" "at_a_glance" {
             {
               "datasource" : {
                 "type" : "prometheus",
-                "uid" : grafana_data_source.prometheus.uid 
+                "uid" : grafana_data_source.prometheus.uid
               },
               "exemplar" : true,
               "expr" : "increase(dispatched_notifications{type=\"failed\"}[5m])",
@@ -854,7 +854,7 @@ resource "grafana_dashboard" "at_a_glance" {
         {
           "datasource" : {
             "type" : "prometheus",
-            "uid" : grafana_data_source.prometheus.uid 
+            "uid" : grafana_data_source.prometheus.uid
           },
           "fieldConfig" : {
             "defaults" : {
@@ -932,7 +932,7 @@ resource "grafana_dashboard" "at_a_glance" {
             {
               "datasource" : {
                 "type" : "prometheus",
-                "uid" : grafana_data_source.prometheus.uid 
+                "uid" : grafana_data_source.prometheus.uid
               },
               "exemplar" : true,
               "expr" : "increase(dispatched_notifications{type=\"not_found\"}[5m])",
