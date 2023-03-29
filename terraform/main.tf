@@ -85,6 +85,11 @@ module "ecs" {
   vpc_id              = module.vpc.vpc_id
   mongo_address       = module.keystore-docdb.connection_url
   keypair_seed        = var.keypair_seed
+
+  analytics_datalake_bucket_name = module.analytics.bucket-name
+  analytics_key_arn              = module.analytics.kms-key_arn
+  analytics_geoip_db_bucket_name = local.geoip_db_bucket_name
+  analytics_geoip_db_key         = var.geoip_db_key
 }
 
 module "vpc" {
