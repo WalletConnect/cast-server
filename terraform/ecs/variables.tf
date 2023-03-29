@@ -77,3 +77,11 @@ variable "analytics_key_arn" {
   description = "The ARN of the KMS key used to encrypt the analytics data"
   type        = string
 }
+
+variable "telemetry_sample_ratio" {
+  type = number
+}
+
+variable "allowed_origins" {
+  type = string
+}
