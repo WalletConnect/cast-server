@@ -39,9 +39,9 @@ resource "grafana_data_source" "cloudwatch" {
   type = "cloudwatch"
   name = "${var.environment}-${var.app_name}-cloudwatch"
 
-  json_data_encoded {
-    default_region = "eu-central-1"
-  }
+  json_data_encoded = jsonencode({
+    defaultRegion = "eu-central-1"
+  })
 }
 
 # JSON Dashboard. When exporting from Grafana make sure that all
