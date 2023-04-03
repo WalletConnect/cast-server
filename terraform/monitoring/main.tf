@@ -177,7 +177,7 @@ resource "grafana_dashboard" "at_a_glance" {
                 "uid" : grafana_data_source.cloudwatch.uid
               },
               "dimensions" : {
-                "DBClusterIdentifier" : "prod-cast-keystore-docdb-primary-cluster"
+                "DBClusterIdentifier" : "${var.environment}-cast-keystore-docdb-primary-cluster"
               },
               "expression" : "",
               "id" : "",
@@ -284,7 +284,7 @@ resource "grafana_dashboard" "at_a_glance" {
                 "uid" : grafana_data_source.cloudwatch.uid
               },
               "dimensions" : {
-                "DBClusterIdentifier" : "prod-cast-keystore-docdb-primary-cluster"
+                "DBClusterIdentifier" : "${var.environment}-cast-keystore-docdb-primary-cluster"
               },
               "expression" : "",
               "id" : "",
@@ -387,7 +387,7 @@ resource "grafana_dashboard" "at_a_glance" {
                 "uid" : grafana_data_source.cloudwatch.uid
               },
               "dimensions" : {
-                "DBClusterIdentifier" : "prod-cast-keystore-docdb-primary-cluster"
+                "DBClusterIdentifier" : "${var.environment}-cast-keystore-docdb-primary-cluster"
               },
               "expression" : "",
               "id" : "",
@@ -495,7 +495,7 @@ resource "grafana_dashboard" "at_a_glance" {
                 "uid" : grafana_data_source.cloudwatch.uid
               },
               "dimensions" : {
-                "DBClusterIdentifier" : "prod-cast-keystore-docdb-primary-cluster"
+                "DBClusterIdentifier" : "${var.environment}-cast-keystore-docdb-primary-cluster"
               },
               "expression" : "",
               "id" : "",
@@ -1462,8 +1462,8 @@ resource "grafana_dashboard" "at_a_glance" {
       },
       "timepicker" : {},
       "timezone" : "",
-      "title" : "prod-cast",
-      "uid" : "prod-cast",
+      "title" : "${var.environment}-cast",
+      "uid" : "${var.environment}-cast",
       "version" : 4,
       "weekStart" : ""
     }
