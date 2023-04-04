@@ -36,12 +36,14 @@ impl UnregisterService {
     pub async fn new(app_state: Arc<AppState>, rx: Receiver<UnregisterMessage>) -> Result<Self> {
         let url = app_state.config.relay_url.clone();
 
-        let client = wsclient::connect(
+        let mut client = wsclient::connect(
             &app_state.config.relay_url,
             &app_state.config.project_id,
             jwt_token(&url, &app_state.unregister_keypair)?,
         )
         .await?;
+
+        resubscribe(&app_state.database, &mut client).await?;
 
         Ok(Self {
             rx,
