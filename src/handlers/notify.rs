@@ -30,7 +30,7 @@ use {
         time::SystemTime,
     },
     tokio_stream::StreamExt,
-    tracing::{error, info},
+    tracing::{debug, error, info},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -244,7 +244,7 @@ pub async fn handler(
         metrics
             .send_latency
             .record(&ctx, timer.elapsed().as_millis().try_into().unwrap(), &[
-                KeyValue::new("project_id", project_id),
+                KeyValue::new("project_id", project_id.clone()),
             ])
     }
 
@@ -254,6 +254,11 @@ pub async fn handler(
         failed: failed_sends,
         not_found,
     };
+
+    debug!(
+        "Response: {:?} for notify from project: {}",
+        response, project_id
+    );
 
     Ok((StatusCode::OK, Json(response)).into_response())
 }
