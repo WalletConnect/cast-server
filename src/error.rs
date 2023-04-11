@@ -68,7 +68,7 @@ impl IntoResponse for Error {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Serialization failure.").into_response()
             }
             Self::Hex(_) => (StatusCode::BAD_REQUEST, "Invalid symmetric key").into_response(),
-            error @ _ => {
+            error => {
                 warn!("Unhandled error: {:?}", error);
                 (StatusCode::NOT_FOUND, "Not found.").into_response()
             }
