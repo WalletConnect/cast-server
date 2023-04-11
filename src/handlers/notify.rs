@@ -162,7 +162,7 @@ pub async fn handler(
             params: JsonRpcParams::Publish(PublishParams {
                 topic: sha256::digest(&*encryption_key),
                 message: base64_notification.clone(),
-                ttl_secs: 8400,
+                ttl_secs: 86400,
                 tag: 4002,
                 prompt: true,
             }),

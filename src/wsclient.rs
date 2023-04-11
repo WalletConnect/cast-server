@@ -106,7 +106,7 @@ impl WsClient {
             walletconnect_sdk::rpc::rpc::Params::Publish(Publish {
                 topic: topic.into(),
                 message: payload.into(),
-                ttl_secs: 8400,
+                ttl_secs: 86400,
                 tag,
                 prompt: true,
             }),
