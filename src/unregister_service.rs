@@ -82,12 +82,13 @@ impl UnregisterService {
                         message = self.client.recv().fuse() => {
                             match message {
                                 Ok(msg) => {
+                                    info!("Unregister service received message: {:?}", msg);
                                     if let Payload::Request(req) = msg {
                                         if let Params::Subscription(params) = req.params {
                                             if params.data.tag == 4004 {
                                                 let topic = params.data.topic.to_string();
                                                 // TODO: Keep subscription id in db
-                                                if let Err(e) =self.client.unsubscribe(&topic, "asd").await {
+                                                if let Err(e) =self.client.unsubscribe(&topic, "").await {
                                                     error!("Error unsubscribing Cast from topic: {}", e);
                                                 };
                                                 match self.state.database.collection::<LookupEntry>("lookup_table").find_one_and_delete(doc! {"_id": &topic }, None).await {
