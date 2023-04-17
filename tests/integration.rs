@@ -19,7 +19,7 @@ use {
         auth::ed25519_dalek::Keypair,
         rpc::{Params, Payload},
     },
-    x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret},
+    x25519_dalek::{PublicKey, StaticSecret},
 };
 
 mod context;

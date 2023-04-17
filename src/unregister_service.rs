@@ -16,7 +16,7 @@ use {
     },
     futures::{executor, future, select, FutureExt, StreamExt},
     mongodb::{bson::doc, Database},
-    std::{panic::UnwindSafe, sync::Arc},
+    std::sync::Arc,
     tokio::sync::mpsc::Receiver,
     walletconnect_sdk::rpc::{
         domain::MessageId,
@@ -117,6 +117,26 @@ async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<
     // Iterate over all topics and sub to them again using the _id field from each
     // record
     // Chunked into 500, as thats the max relay is allowing
+    cursor
+        .chunks(500)
+        .for_each(|chunk| {
+            let topics = chunk
+                .into_iter()
+                .filter_map(|x| x.ok())
+                .map(|x| x.topic)
+                .collect::<Vec<String>>();
+            if let Err(e) = executor::block_on(client.batch_subscribe(topics)) {
+                error!("Error resubscribing to topics: {}", e);
+            }
+            future::ready(())
+        })
+        .await;
+
+    let cursor = database
+        .collection::<ProjectData>("project_data")
+        .find(None, None)
+        .await?;
+
     cursor
         .chunks(500)
         .for_each(|chunk| {
