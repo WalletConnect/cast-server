@@ -10,6 +10,7 @@ use {
     tungstenite::Message,
     walletconnect_sdk::rpc::{
         auth::ed25519_dalek::Keypair,
+        domain::{SubscriptionId, Topic},
         rpc::{
             BatchSubscribe,
             Params,
@@ -63,6 +64,7 @@ impl WsClient {
 
     pub async fn send_raw(&mut self, msg: Payload) -> Result<()> {
         let msg = serde_json::to_string(&msg).unwrap();
+        dbg!(&msg);
         self.tx
             .send(Message::Text(msg))
             .await
@@ -129,10 +131,14 @@ impl WsClient {
         self.send_raw(msg).await
     }
 
-    pub async fn unsubscribe(&mut self, topic: &str, subscription_id: &str) -> Result<()> {
+    pub async fn unsubscribe(
+        &mut self,
+        topic: Topic,
+        subscription_id: SubscriptionId,
+    ) -> Result<()> {
         let msg = Payload::Request(new_rpc_request(Params::Unsubscribe(Unsubscribe {
             topic: topic.into(),
-            subscription_id: subscription_id.into(),
+            subscription_id,
         })));
         self.send_raw(msg).await
     }

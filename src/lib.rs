@@ -105,6 +105,10 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
         .route("/health", get(handlers::health::handler))
         .route("/:project_id/register", post(handlers::register::handler))
         .route("/:project_id/notify", post(handlers::notify::handler))
+        .route(
+            "/:project_id/subscribe-topic",
+            get(handlers::subscribe_topic::handler),
+        )
         .layer(global_middleware)
         .layer(cors)
         .with_state(state_arc.clone());

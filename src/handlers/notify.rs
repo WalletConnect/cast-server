@@ -4,7 +4,7 @@ use {
         error::{self},
         jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification, PublishParams},
         state::AppState,
-        types::ClientData,
+        types::{ClientData, Envelope, EnvelopeType0},
     },
     axum::{
         extract::{ConnectInfo, Path, State},
@@ -43,31 +43,6 @@ pub struct NotifyBody {
 pub struct SendFailure {
     pub account: String,
     pub reason: String,
-}
-
-#[derive(Serialize)]
-pub struct Envelope {
-    pub envelope_type: u8,
-    pub iv: [u8; 12],
-    pub sealbox: Vec<u8>,
-}
-
-impl Envelope {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut serialized = vec![];
-        serialized.push(self.envelope_type);
-        serialized.extend_from_slice(&self.iv);
-        serialized.extend_from_slice(&self.sealbox);
-        serialized
-    }
-
-    pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        Self {
-            envelope_type: bytes[0],
-            iv: bytes[1..13].try_into().unwrap(),
-            sealbox: bytes[13..].to_vec(),
-        }
-    }
 }
 
 // Change String to Account
@@ -139,7 +114,7 @@ pub async fn handler(
                 Ok(ciphertext) => ciphertext,
             };
 
-            let envelope = Envelope {
+            let envelope = EnvelopeType0 {
                 envelope_type: 0,
                 iv: nonce.into(),
                 sealbox: encrypted,
