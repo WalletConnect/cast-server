@@ -302,7 +302,7 @@ fn create_envelope() {
         iss: "".into(),
         ksu: "".into(),
         aud: "".into(),
-        sub: "did:pkh:eip155:2:0xbE016C33C395A0891A10626Def9c5C13d869040E".into(),
+        sub: "did:pkh:eip155:2:0xbE016C33C395A0891A10626Def9c5C13d8690330".into(),
         act: "".into(),
         scp: "".into(),
     };

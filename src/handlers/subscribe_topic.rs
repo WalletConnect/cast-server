@@ -9,6 +9,7 @@ use {
     log::info,
     mongodb::{bson::doc, options::ReplaceOptions},
     serde::{Deserialize, Serialize},
+    serde_json::json,
     std::sync::Arc,
     x25519_dalek::{PublicKey, StaticSecret},
 };
@@ -38,8 +39,6 @@ pub async fn handler(
             let seed: [u8; 32] = project_secret.as_bytes()[..32]
                 .try_into()
                 .map_err(|_| error::Error::InvalidKeypairSeed)?;
-
-            dbg!(&seed);
 
             // let keypair = Keypair::generate(&mut seeded);
             let secret = StaticSecret::from(seed);
@@ -76,11 +75,12 @@ pub async fn handler(
                 .await
                 .unwrap();
 
-            Ok(Json(format!("{{\"publicKey\":\"{public_key}\"}}")).into_response())
+            Ok(Json(json!({ "publicKey": public_key })).into_response())
         }
-        None => Ok(Json(
-            "{{\"reason\":\"Unauthorized. Please make sure to include project secret in \
-             Authorization header. \"}}",
+        None => Ok(Json( json! ( 
+            {
+                "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
+            })
         )
         .into_response()),
     }
