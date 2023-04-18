@@ -56,7 +56,7 @@ pub enum Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
-        error!("{:?}", self);
+        warn!("{:?}", self);
         match self {
             Self::Database(_) => (
                 StatusCode::BAD_REQUEST,

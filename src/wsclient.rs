@@ -6,7 +6,7 @@ use {
     std::sync::Arc,
     tokio::{select, sync::mpsc},
     tokio_stream::wrappers::ReceiverStream,
-    tracing::{debug, error, info, warn},
+    tracing::{info, warn},
     tungstenite::Message,
     walletconnect_sdk::rpc::{
         auth::ed25519_dalek::Keypair,
@@ -77,11 +77,11 @@ impl WsClient {
                 Some(msg) => match msg? {
                     Message::Text(msg) => return Ok(serde_json::from_str(&msg).unwrap()),
                     Message::Ping(_) => {
-                        debug!("Received ping from Relay WS, sending pong");
+                        info!("Received ping from Relay WS, sending pong");
                         self.pong().await?;
                     }
                     e => {
-                        error!("{:?}", e);
+                        warn!("{:?}", e);
                     }
                 },
                 None => {

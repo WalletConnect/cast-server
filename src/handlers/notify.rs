@@ -18,6 +18,7 @@ use {
         consts::U12,
         KeyInit,
     },
+    log::warn,
     mongodb::bson::doc,
     opentelemetry::{Context, KeyValue},
     rand::{distributions::Uniform, prelude::Distribution},
@@ -30,7 +31,7 @@ use {
         time::SystemTime,
     },
     tokio_stream::StreamExt,
-    tracing::{debug, error, info},
+    tracing::info,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -177,7 +178,7 @@ pub async fn handler(
                     };
                 }
                 Err(e) => {
-                    error!("{}", e);
+                    warn!("{}", e);
                     failed_sends.insert(SendFailure {
                         account: sender,
                         reason: format!(
@@ -230,7 +231,7 @@ pub async fn handler(
         not_found,
     };
 
-    debug!(
+    info!(
         "Response: {:?} for notify from project: {}",
         response, project_id
     );

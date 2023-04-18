@@ -12,6 +12,7 @@ use {
         consts::U12,
         KeyInit,
     },
+    parquet::data_type::AsBytes,
     rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng},
     std::{collections::HashMap, time::Duration},
     tokio::time::sleep,
@@ -33,6 +34,10 @@ fn urls(env: String) -> (String, String) {
         "PROD" => (
             "https://cast.walletconnect.com".to_owned(),
             "wss://relay.walletconnect.com".to_owned(),
+        ),
+        "LOCAL" => (
+            "http://127.0.0.1:3000".to_owned(),
+            "wss://staging.cast.walletconnect.com".to_owned(),
         ),
         _ => panic!("Invalid environment"),
     }
@@ -276,14 +281,17 @@ fn create_envelope() {
     let secret = StaticSecret::from(seed);
     let public = PublicKey::from(&secret);
 
-    let proj_pub_key = "73b3605fc7fbcc384c592b3b9dc86af2e3645a4d7e289749b0264ac187fd5603";
+    let proj_pub_key = "22a4cbe5f9d1b77d0edcf219642bf51bf2690c290a45ad66659335b0fa587e04";
     let sym_key = derive_key(proj_pub_key.to_string(), hex::encode(secret));
     dbg!(&sym_key);
     let encryption_key = hex::decode(sym_key).unwrap();
 
     // let topic = sha256::digest(encryption_key.as_slice());
-    let topic = sha256::digest(hex::decode(proj_pub_key).unwrap().as_slice());
-    dbg!(topic);
+    let topic_proj = sha256::digest(hex::decode(proj_pub_key).unwrap().as_slice());
+    dbg!(topic_proj);
+
+    let topic_client = sha256::digest(encryption_key.as_bytes());
+    dbg!(topic_client);
 
     let mut cipher =
         chacha20poly1305::ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
@@ -302,7 +310,7 @@ fn create_envelope() {
         iss: "".into(),
         ksu: "".into(),
         aud: "".into(),
-        sub: "did:pkh:eip155:2:0xbE016C33C395A0891A10626Def9c5C13d8690330".into(),
+        sub: "did:pkh:eip155:2:0xbE016C33C395A0891A10626Def9c5C13d8690990".into(),
         act: "".into(),
         scp: "".into(),
     };
@@ -334,7 +342,27 @@ fn create_envelope() {
         .unwrap();
     let envelope = EnvelopeType1::from_bytes(decoded);
 
-    dbg!(&envelope);
+    let uniform = Uniform::from(0u8..=255);
+
+    let mut rng = StdRng::from_entropy();
+
+    let nonce: GenericArray<u8, U12> =
+        GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
+
+    let message = "{\"code\": 3,\"message\": \"Unregister reason\"}";
+
+    let encrypted = cipher.encrypt(&nonce, message.as_bytes()).unwrap();
+
+    let envelope = EnvelopeType0 {
+        envelope_type: 0,
+        iv: nonce.into(),
+        sealbox: encrypted,
+    };
+
+    let encrypted_msg = envelope.to_bytes();
+
+    let message = base64::engine::general_purpose::STANDARD.encode(encrypted_msg);
+    dbg!(message);
 
     let decrypted = cipher
         .decrypt(

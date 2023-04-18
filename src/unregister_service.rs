@@ -2,7 +2,7 @@ use {
     crate::{
         auth::{jwt_token, SubscriptionAuth},
         handlers::subscribe_topic::ProjectData,
-        log::{error, info, warn},
+        log::{info, warn},
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0, EnvelopeType1, LookupEntry, RegisterBody},
         wsclient::{self, WsClient},
@@ -14,6 +14,7 @@ use {
         ChaCha20Poly1305,
         KeyInit,
     },
+    data_encoding::BASE64URL_NOPAD,
     futures::{executor, future, select, FutureExt, StreamExt},
     mongodb::{bson::doc, Database},
     std::sync::Arc,
@@ -126,7 +127,7 @@ async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<
                 .map(|x| x.topic)
                 .collect::<Vec<String>>();
             if let Err(e) = executor::block_on(client.batch_subscribe(topics)) {
-                error!("Error resubscribing to topics: {}", e);
+                warn!("Error resubscribing to topics: {}", e);
             }
             future::ready(())
         })
@@ -146,7 +147,7 @@ async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<
                 .map(|x| x.topic)
                 .collect::<Vec<String>>();
             if let Err(e) = executor::block_on(client.batch_subscribe(topics)) {
-                error!("Error resubscribing to topics: {}", e);
+                warn!("Error resubscribing to topics: {}", e);
             }
             future::ready(())
         })
@@ -192,7 +193,7 @@ async fn handle_push_delete(
     let subscription_id = params.id;
     // TODO: Keep subscription id in db
     if let Err(e) = client.unsubscribe(topic.clone(), subscription_id).await {
-        error!("Error unsubscribing Cast from topic: {}", e);
+        warn!("Error unsubscribing Cast from topic: {}", e);
     };
 
     let topic = topic.to_string();
@@ -258,7 +259,7 @@ async fn handle_push_delete(
                     warn!("No entry found for account: {}", &account);
                 }
                 Err(e) => {
-                    error!("Error unregistering account {}: {}", &account, e);
+                    warn!("Error unregistering account {}: {}", &account, e);
                 }
             }
         }
@@ -266,7 +267,7 @@ async fn handle_push_delete(
             warn!("No entry found for topic: {}", &topic);
         }
         Err(e) => {
-            error!("Error unregistering from topic {}: {}", &topic, e);
+            warn!("Error unregistering from topic {}: {}", &topic, e);
         }
     }
     // TODO: fix
@@ -300,7 +301,6 @@ async fn handle_subscribe_message(
             .decode(message.to_string())
             .unwrap(),
     );
-    dbg!(&envelope);
 
     let sym_key = derive_key(hex::encode(envelope.pubkey), project_data.private_key);
     info!("sym_key: {}", &sym_key);
@@ -308,32 +308,16 @@ async fn handle_subscribe_message(
     let encryption_key = hex::decode(&sym_key).unwrap();
     let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
 
-    // let sub_auth: SubscriptionAuth = match cipher.decrypt(
-    //     GenericArray::from_slice(&envelope.iv),
-    //     chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
-    // ) {
-    //     Ok(msg) => {
-    //         let msg = String::from_utf8(msg).unwrap();
-    //         let msg: serde_json::Value = serde_json::from_str(&msg).unwrap();
-
-    // serde_json::from_str(&msg.get("subscriptionAuth").unwrap().to_string()).
-    // unwrap()     }
-    //     Err(_) => {
-    //         warn!("couldn't decrypt ");
-    //     }
-    // }
-
     let sub_auth: SubscriptionAuth = {
         let msg = cipher.decrypt(
             GenericArray::from_slice(&envelope.iv),
             chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
         );
-        dbg!(&msg);
         let msg: serde_json::Value = serde_json::from_slice(&msg.unwrap()).unwrap();
 
         let jwt = msg.get("subscriptionAuth").unwrap().to_string();
         let claims = jwt.split(".").collect::<Vec<&str>>()[1];
-        let claims = base64::decode(claims).unwrap();
+        let claims = BASE64URL_NOPAD.decode(claims.as_bytes()).unwrap();
         serde_json::from_slice(&claims).unwrap()
     };
 
