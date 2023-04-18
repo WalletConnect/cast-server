@@ -14,7 +14,7 @@ use {
         ChaCha20Poly1305,
         KeyInit,
     },
-    data_encoding::BASE64URL_NOPAD,
+    data_encoding::{BASE64URL_NOPAD, BASE64_NOPAD},
     futures::{executor, future, select, FutureExt, StreamExt},
     log::debug,
     mongodb::{bson::doc, Database},
@@ -318,7 +318,23 @@ async fn handle_subscribe_message(
 
         let jwt = msg.get("subscriptionAuth").unwrap().to_string();
         let claims = jwt.split(".").collect::<Vec<&str>>()[1];
-        let claims = BASE64URL_NOPAD.decode(claims.as_bytes()).unwrap();
+
+        let claims = match BASE64_NOPAD.decode(claims.as_bytes()) {
+            Ok(claims) => claims,
+            Err(_) => {
+                info!("Invalid JWT");
+                client
+                    .send_raw(Payload::Response(
+                        walletconnect_sdk::rpc::rpc::Response::Success(SuccessfulResponse {
+                            id,
+                            jsonrpc: "2.0".into(),
+                            result: serde_json::Value::Bool(true),
+                        }),
+                    ))
+                    .await?;
+                return Ok(());
+            }
+        };
         serde_json::from_slice(&claims).unwrap()
     };
 

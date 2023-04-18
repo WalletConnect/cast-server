@@ -67,6 +67,7 @@ pub async fn handler(
                 )
                 .await?;
 
+            info!("Subscribing to project topic: {}", &topic);
             state
                 .unregister_tx
                 .send(crate::unregister_service::UnregisterMessage::Register(

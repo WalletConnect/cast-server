@@ -281,7 +281,7 @@ fn create_envelope() {
     let secret = StaticSecret::from(seed);
     let public = PublicKey::from(&secret);
 
-    let proj_pub_key = "22a4cbe5f9d1b77d0edcf219642bf51bf2690c290a45ad66659335b0fa587e04";
+    let proj_pub_key = "39ef9c00a026891a03061d3d80c7b9df16c67d1cae830a0c204df6cae888fd44";
     let sym_key = derive_key(proj_pub_key.to_string(), hex::encode(secret));
     dbg!(&sym_key);
     let encryption_key = hex::decode(sym_key).unwrap();
@@ -310,13 +310,13 @@ fn create_envelope() {
         iss: "".into(),
         ksu: "".into(),
         aud: "".into(),
-        sub: "did:pkh:eip155:2:0xbE016C33C395A0891A10626Def9c5C13d8690990".into(),
+        sub: "did:pkh:eip155:2:0xbE016C33C395A0891A10626Def9c5C13d8699990".into(),
         act: "".into(),
         scp: "".into(),
     };
 
     let claims = serde_json::to_string(&sub_auth).unwrap();
-    let base64_claims = base64::engine::general_purpose::STANDARD.encode(claims.as_bytes());
+    let base64_claims = base64::engine::general_purpose::STANDARD_NO_PAD.encode(claims.as_bytes());
 
     let mut map = HashMap::new();
     map.insert("subscriptionAuth", format!("test.{base64_claims}.test"));

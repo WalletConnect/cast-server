@@ -99,7 +99,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_headers([http::header::CONTENT_TYPE]);
+        .allow_headers([http::header::CONTENT_TYPE, http::header::AUTHORIZATION]);
 
     let app = Router::new()
         .route("/health", get(handlers::health::handler))
