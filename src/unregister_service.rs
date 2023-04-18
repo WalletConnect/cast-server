@@ -16,6 +16,7 @@ use {
     },
     data_encoding::BASE64URL_NOPAD,
     futures::{executor, future, select, FutureExt, StreamExt},
+    log::debug,
     mongodb::{bson::doc, Database},
     std::sync::Arc,
     tokio::sync::mpsc::Receiver,
@@ -108,7 +109,7 @@ impl UnregisterService {
 
 async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<()> {
     // TODO: Sub to all
-    info!("Resubscribing to all topics");
+    debug!("Resubscribing to all topics");
     // Get all topics from db
     let cursor = database
         .collection::<LookupEntry>("lookup_table")
