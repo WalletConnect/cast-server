@@ -62,9 +62,17 @@ impl WsClient {
         .await
     }
 
+    // TODO: Fix
+
+    pub async fn send_plaintext(&mut self, msg: String) -> Result<()> {
+        self.tx
+            .send(Message::Text(msg))
+            .await
+            .map_err(|_| crate::error::Error::ChannelClosed)
+    }
+
     pub async fn send_raw(&mut self, msg: Payload) -> Result<()> {
         let msg = serde_json::to_string(&msg).unwrap();
-        dbg!(&msg);
         self.tx
             .send(Message::Text(msg))
             .await

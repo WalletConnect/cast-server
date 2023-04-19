@@ -74,6 +74,8 @@ dashmap = "5.4.0"
 
 walletconnect_sdk = { git = "https://github.com/WalletConnect/WalletConnectRust.git", features= ["rpc"],  rev  = "ced99e7"}
 x25519-dalek = { version = "2.0.0-rc.2" , features = ["static_secrets"]}
+hkdf = "0.12.3"
+sha2 = "0.10.6"
 
 
 [dev-dependencies]

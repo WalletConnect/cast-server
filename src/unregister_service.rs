@@ -11,6 +11,7 @@ use {
     base64::Engine,
     chacha20poly1305::{
         aead::{generic_array::GenericArray, Aead},
+        consts::U12,
         ChaCha20Poly1305,
         KeyInit,
     },
@@ -18,13 +19,34 @@ use {
     futures::{executor, future, select, FutureExt, StreamExt},
     log::debug,
     mongodb::{bson::doc, Database},
-    std::sync::Arc,
+    rand::{distributions::Uniform, prelude::Distribution},
+    rand_core::OsRng,
+    serde::{Deserialize, Serialize},
+    sha2::{Digest, Sha256},
+    std::{io::Read, sync::Arc, time::SystemTime},
     tokio::sync::mpsc::Receiver,
     walletconnect_sdk::rpc::{
         domain::MessageId,
-        rpc::{Params, Payload, Subscription, SubscriptionData, SuccessfulResponse},
+        rpc::{
+            Params,
+            Payload,
+            Publish,
+            Request,
+            Response,
+            Subscription,
+            SubscriptionData,
+            SuccessfulResponse,
+        },
     },
+    x25519_dalek::x25519,
 };
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequestBody {
+    pub id: MessageId,
+    pub jsonrpc: String,
+    pub params: String,
+}
 
 #[derive(Debug, Clone)]
 pub enum UnregisterMessage {
@@ -221,7 +243,7 @@ async fn handle_push_delete(
                         Ok(message_bytes) => {
                             let envelope = EnvelopeType0::from_bytes(message_bytes);
                             // Safe unwrap - we are sure that stored keys are valid
-                            let encryption_key = hex::decode(&acc.sym_key).unwrap();
+                            let encryption_key = hex::decode(&acc.sym_key)?;
                             let cipher =
                                 ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
 
@@ -230,7 +252,7 @@ async fn handle_push_delete(
                                 chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
                             ) {
                                 Ok(msg) => {
-                                    let msg = String::from_utf8(msg).unwrap();
+                                    let msg = String::from_utf8(msg)?;
                                     info!(
                                         "Unregistered {} from {} with reason {}",
                                         account, project_id, msg
@@ -295,47 +317,109 @@ async fn handle_subscribe_message(
         .collection::<ProjectData>("project_data")
         .find_one(doc!("topic":topic.clone()), None)
         .await?
-        .unwrap();
+        .ok_or(crate::error::Error::NoProjectDataForTopic(topic))?;
 
     let envelope = EnvelopeType1::from_bytes(
-        base64::engine::general_purpose::STANDARD
-            .decode(message.to_string())
-            .unwrap(),
+        base64::engine::general_purpose::STANDARD.decode(message.to_string())?,
     );
 
-    let sym_key = derive_key(hex::encode(envelope.pubkey), project_data.private_key);
+    info!("pubkey: {}", hex::encode(&envelope.pubkey));
+
+    let sym_key = derive_key(hex::encode(envelope.pubkey), project_data.private_key)?;
     info!("sym_key: {}", &sym_key);
 
-    let encryption_key = hex::decode(&sym_key).unwrap();
+    let encryption_key = hex::decode(&sym_key)?;
     let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
 
     let sub_auth: SubscriptionAuth = {
-        let msg = cipher.decrypt(
-            GenericArray::from_slice(&envelope.iv),
-            chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
-        );
-        let msg: serde_json::Value = serde_json::from_slice(&msg.unwrap()).unwrap();
+        let msg = cipher
+            .decrypt(
+                GenericArray::from_slice(&envelope.iv),
+                chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
+            )
+            .map_err(|_| crate::error::Error::EncryptionError("Failed to encrypt".into()))?;
+        let msg: serde_json::Value = serde_json::from_slice(&msg)?;
+        dbg!(&msg);
 
-        let jwt = msg.get("subscriptionAuth").unwrap().to_string();
+        let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
+
+        let id = msg
+            .get("id")
+            .ok_or(crate::error::Error::JsonGetError)?
+            .as_u64()
+            .ok_or(crate::error::Error::JsonGetError)?;
+        let params = msg
+            .get("params")
+            .ok_or(crate::error::Error::JsonGetError)?
+            .as_object()
+            .ok_or(crate::error::Error::JsonGetError)?;
+        let jwt = params
+            .get("subscriptionAuth")
+            .ok_or(crate::error::Error::SubscriptionAuthError(
+                "Subscription auth missing in request".into(),
+            ))?
+            .to_string();
+
         let claims = jwt.split(".").collect::<Vec<&str>>()[1];
 
         let claims = match BASE64_NOPAD.decode(claims.as_bytes()) {
             Ok(claims) => claims,
             Err(_) => {
                 info!("Invalid JWT");
-                client
-                    .send_raw(Payload::Response(
-                        walletconnect_sdk::rpc::rpc::Response::Success(SuccessfulResponse {
-                            id,
-                            jsonrpc: "2.0".into(),
-                            result: serde_json::Value::Bool(true),
-                        }),
-                    ))
-                    .await?;
                 return Ok(());
             }
         };
-        serde_json::from_slice(&claims).unwrap()
+
+        info!("Sent");
+
+        let uniform = Uniform::from(0u8..=255);
+
+        let mut rng = OsRng {};
+        let nonce: GenericArray<u8, U12> =
+            GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
+
+        let response = Payload::Response(walletconnect_sdk::rpc::rpc::Response::Success(
+            SuccessfulResponse {
+                id: id.into(),
+                jsonrpc: "2.0".into(),
+                result: serde_json::Value::Bool(true),
+            },
+        ));
+        let response = cipher
+            .encrypt(&nonce, serde_json::to_string(&response)?.as_bytes())
+            .map_err(|_| crate::error::Error::EncryptionError("Encryption failed".into()))?;
+
+        let envelope = EnvelopeType0 {
+            envelope_type: 0,
+            iv: nonce.into(),
+            sealbox: response.to_vec(),
+        };
+        let base64_notification =
+            base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
+
+        let key = hex::decode(sym_key.clone())?;
+        let client_topic = sha256::digest(&*key);
+        info!("client_topic: {}", &client_topic);
+
+        info!("sending");
+        let id = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_millis() as u64;
+        client
+            .send_raw(Payload::Request(Request {
+                id: id.into(),
+                jsonrpc: "2.0".into(),
+                params: Params::Publish(Publish {
+                    topic: client_topic.into(),
+                    message: base64_notification.into(),
+                    ttl_secs: 86400,
+                    tag: 4007,
+                    prompt: false,
+                }),
+            }))
+            .await?;
+        // TODO: tu odp
+        serde_json::from_slice(&claims)?
     };
 
     let client_data = RegisterBody {
@@ -349,7 +433,7 @@ async fn handle_subscribe_message(
         .register_client(
             &project_data.id,
             &client_data,
-            &url::Url::parse(&state.config.relay_url).unwrap(),
+            &url::Url::parse(&state.config.relay_url)?,
         )
         .await?;
 
@@ -367,13 +451,37 @@ async fn handle_subscribe_message(
     Ok(())
 }
 
-fn derive_key(pubkey: String, privkey: String) -> String {
-    let pubkey: [u8; 32] = hex::decode(pubkey).unwrap()[..32].try_into().unwrap();
-    let privkey: [u8; 32] = hex::decode(privkey).unwrap()[..32].try_into().unwrap();
+fn derive_key(pubkey: String, privkey: String) -> Result<String> {
+    let pubkey: [u8; 32] = hex::decode(pubkey)?[..32].try_into()?;
+    let privkey: [u8; 32] = hex::decode(privkey)?[..32].try_into()?;
 
     let secret_key = x25519_dalek::StaticSecret::from(privkey);
     let public_key = x25519_dalek::PublicKey::from(pubkey);
 
     let shared_key = secret_key.diffie_hellman(&public_key);
-    hex::encode(shared_key.as_bytes())
+
+    let derived_key = hkdf::Hkdf::<Sha256>::new(None, shared_key.as_bytes());
+
+    let mut expanded_key = [0u8; 32];
+    derived_key
+        .expand(b"", &mut expanded_key)
+        .map_err(|_| crate::error::Error::HkdfInvalidLength)?;
+    Ok(hex::encode(expanded_key))
+}
+
+#[test]
+fn test_derive() {
+    let keypriv1 = "1fb63fca5c6ac731246f2f069d3bc2454345d5208254aa8ea7bffc6d110c8862";
+    let keypriv2 = "36bf507903537de91f5e573666eaa69b1fa313974f23b2b59645f20fea505854";
+    let keypub1 = "ff7a7d5767c362b0a17ad92299ebdb7831dcbd9a56959c01368c7404543b3342";
+    let keypub2 = "590c2c627be7af08597091ff80dd41f7fa28acd10ef7191d7e830e116d3a186a";
+    let expected = "0653ca620c7b4990392e1c53c4a51c14a2840cd20f0f1524cf435b17b6fe988c";
+    assert_eq!(
+        expected,
+        derive_key(keypub1.to_string(), keypriv2.to_string()).unwrap()
+    );
+    assert_eq!(
+        expected,
+        derive_key(keypub2.to_string(), keypriv1.to_string()).unwrap(),
+    );
 }

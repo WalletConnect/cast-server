@@ -1,6 +1,7 @@
 use {
     axum::response::IntoResponse,
     hyper::StatusCode,
+    std::string::FromUtf8Error,
     tracing::{error, warn},
 };
 
@@ -38,11 +39,38 @@ pub enum Error {
     #[error(transparent)]
     WebSocket(#[from] tungstenite::Error),
 
+    #[error(transparent)]
+    FromUtf8Error(#[from] FromUtf8Error),
+
+    #[error(transparent)]
+    Base64Decode(#[from] base64::DecodeError),
+
+    #[error("No project found associated with topic {0}")]
+    NoProjectDataForTopic(String),
+
     #[error("Tried to interact with channel that's already closed")]
     ChannelClosed,
 
+    #[error("Missing {0}")]
+    SubscriptionAuthError(String),
+
+    #[error(transparent)]
+    TryFromSliceError(#[from] std::array::TryFromSliceError),
+
+    #[error("Invalid key length")]
+    HkdfInvalidLength,
+
+    #[error("Failed to get value from json")]
+    JsonGetError,
+
+    #[error("Cryptography failure: {0}")]
+    EncryptionError(String),
+
     #[error("Failed to receive on websocket")]
     RecvError,
+
+    #[error(transparent)]
+    SystemTimeError(#[from] std::time::SystemTimeError),
 
     #[error("Failed to parse the keypair seed")]
     InvalidKeypairSeed,
