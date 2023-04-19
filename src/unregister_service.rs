@@ -119,8 +119,7 @@ impl UnregisterService {
                                 },
                                 Err(_) => {
                                     warn!("Client handler has finished, spawning new one");
-                                   self.reconnect().await?;
-
+                                    self.reconnect().await?;
                                 }
                             }
 
