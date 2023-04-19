@@ -110,7 +110,12 @@ impl UnregisterService {
                         message = self.client.recv().fuse() => {
                             match message {
                                 Ok(msg) => {
-                                    handle_msg(msg, &self.state, &mut self.client).await?
+                                    let msg_id = msg.id();
+                                    if let Err(e) = handle_msg(msg, &self.state, &mut self.client).await {
+                                        warn!("Error handling message: {}", e);
+                                    }
+
+                                    self.client.send_ack(msg_id).await?
                                 },
                                 Err(_) => {
                                     warn!("Client handler has finished, spawning new one");
@@ -198,7 +203,6 @@ async fn handle_msg(msg: Payload, state: &Arc<AppState>, client: &mut WsClient) 
         } else {
             info!("Ignored request: {:?}", req);
         }
-        client.send_ack(req.id).await?
     }
     // TODO: This shouldnt be needed
     Ok(())
