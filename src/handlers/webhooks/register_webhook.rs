@@ -1,10 +1,6 @@
 use {
     super::WebhookConfig,
-    crate::{
-        error::Result,
-        state::{AppState, WebhookNotificationEvent},
-        types::WebhookInfo,
-    },
+    crate::{handlers::webhooks::validate_url, state::AppState, types::WebhookInfo},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
@@ -12,7 +8,7 @@ use {
     },
     log::info,
     mongodb::bson::doc,
-    serde::{Deserialize, Serialize},
+    serde::Serialize,
     std::sync::Arc,
     uuid::Uuid,
 };
@@ -51,12 +47,4 @@ pub async fn handler(
         Json(RegisterWebhookResponse { id: webhook_id }),
     )
         .into_response())
-}
-
-fn validate_url(url: &str) -> Result<()> {
-    let url = url::Url::parse(url)?;
-    if url.scheme() != "https" {
-        return Err(crate::error::Error::InvalidScheme);
-    }
-    Ok(())
 }

@@ -340,7 +340,7 @@ fn create_envelope() {
     let decoded = base64::engine::general_purpose::STANDARD
         .decode(env_base64)
         .unwrap();
-    let envelope = EnvelopeType1::from_bytes(decoded);
+    let _envelope = EnvelopeType1::from_bytes(decoded);
 
     let uniform = Uniform::from(0u8..=255);
 
@@ -364,7 +364,7 @@ fn create_envelope() {
     let message = base64::engine::general_purpose::STANDARD.encode(encrypted_msg);
     dbg!(message);
 
-    let decrypted = cipher
+    let _decrypted = cipher
         .decrypt(
             GenericArray::from_slice(&envelope.iv),
             chacha20poly1305::aead::Payload::from(&*envelope.sealbox),

@@ -1,6 +1,6 @@
 use {
     crate::{
-        error::{Error, Result},
+        error::{Result},
         metrics::Metrics,
         types::{ClientData, LookupEntry, RegisterBody, WebhookInfo},
         unregister_service::UnregisterMessage,

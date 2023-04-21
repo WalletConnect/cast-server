@@ -1,8 +1,7 @@
 use {
     super::WebhookConfig,
     crate::{
-        error::Result,
-        state::{AppState, WebhookNotificationEvent},
+        state::{AppState},
         types::WebhookInfo,
     },
     axum::{
@@ -10,12 +9,10 @@ use {
         response::IntoResponse,
         Json,
     },
-    log::info,
     mongodb::{
         bson,
-        bson::{doc, Bson},
+        bson::{doc},
     },
-    serde::{Deserialize, Serialize},
     std::sync::Arc,
     uuid::Uuid,
 };

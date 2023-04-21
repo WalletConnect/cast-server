@@ -1,19 +1,14 @@
 use {
     crate::{
-        error::Result,
-        state::{AppState, WebhookNotificationEvent},
+        state::{AppState},
         types::WebhookInfo,
     },
     axum::{
         extract::{Path, State},
         response::IntoResponse,
-        Json,
     },
-    futures::{StreamExt, TryStreamExt},
-    log::info,
-    mongodb::{bson::doc, Cursor},
-    serde::{Deserialize, Serialize},
-    std::{collections::HashMap, sync::Arc},
+    mongodb::{bson::doc},
+    std::{sync::Arc},
     uuid::Uuid,
 };
 

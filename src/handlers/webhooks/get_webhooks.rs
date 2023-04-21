@@ -1,8 +1,7 @@
 use {
     super::WebhookConfig,
     crate::{
-        error::Result,
-        state::{AppState, WebhookNotificationEvent},
+        state::{AppState},
         types::WebhookInfo,
     },
     axum::{
@@ -10,12 +9,9 @@ use {
         response::IntoResponse,
         Json,
     },
-    futures::{StreamExt, TryStreamExt},
-    log::info,
-    mongodb::{bson::doc, Cursor},
-    serde::{Deserialize, Serialize},
+    futures::{TryStreamExt},
+    mongodb::{bson::doc},
     std::{collections::HashMap, sync::Arc},
-    uuid::Uuid,
 };
 
 pub async fn handler(
