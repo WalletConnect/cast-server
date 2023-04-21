@@ -1,13 +1,16 @@
 use {
     crate::{
-        error::Error,
+        error::{Error, Result},
         metrics::Metrics,
-        types::{ClientData, LookupEntry, RegisterBody},
+        types::{ClientData, LookupEntry, RegisterBody, WebhookInfo},
         unregister_service::UnregisterMessage,
         Configuration,
     },
     build_info::BuildInfo,
+    futures::TryStreamExt,
+    log::info,
     mongodb::{bson::doc, options::ReplaceOptions},
+    serde::{Deserialize, Serialize},
     std::sync::Arc,
     url::Url,
     walletconnect_sdk::rpc::auth::ed25519_dalek::Keypair,
@@ -52,10 +55,9 @@ impl AppState {
         project_id: &String,
         client_data: &RegisterBody,
         url: &Url,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let key = hex::decode(client_data.sym_key.clone())?;
         let topic = sha256::digest(&*key);
-        // chacha20poly1305::ChaCha20Poly1305::new(GenericArray::from_slice(&key));
 
         let insert_data = ClientData {
             id: client_data.account.clone(),
@@ -92,10 +94,71 @@ impl AppState {
             .await
             .unwrap();
 
+        self.notify_webhook(
+            project_id,
+            WebhookNotificationEvent::Subscribed,
+            &client_data.account,
+        )
+        .await?;
+
         Ok(())
     }
 
     pub fn set_metrics(&mut self, metrics: Metrics) {
         self.metrics = Some(metrics);
     }
+
+    pub async fn notify_webhook(
+        &self,
+        project_id: &str,
+        event: WebhookNotificationEvent,
+        account: &str,
+    ) -> Result<()> {
+        let mut cursor = self
+            .database
+            .collection::<WebhookInfo>("webhooks")
+            .find(doc! { "project_id": project_id}, None)
+            .await?;
+
+        // Interate over cursor
+        while let Some(webhook) = cursor.try_next().await? {
+            dbg!(&webhook);
+            if !webhook.events.contains(&event) {
+                continue;
+            }
+
+            let client = reqwest::Client::new();
+            let res = client
+                .post(&webhook.url)
+                .json(&WebhookMessage {
+                    id: webhook.id.clone(),
+                    event,
+                    account: account.to_string(),
+                })
+                .send()
+                .await?;
+
+            info!(
+                "Triggering webhook: {} resulted in http status: {}",
+                webhook.id,
+                res.status()
+            );
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Serialize)]
+pub struct WebhookMessage {
+    pub id: String,
+    pub event: WebhookNotificationEvent,
+    pub account: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum WebhookNotificationEvent {
+    Subscribed,
+    Unsubscribed,
 }

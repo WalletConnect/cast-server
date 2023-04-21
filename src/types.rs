@@ -1,7 +1,16 @@
 use {
+    crate::state::WebhookNotificationEvent,
     serde::{Deserialize, Serialize},
     std::env,
 };
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WebhookInfo {
+    pub id: String,
+    pub url: String,
+    pub events: Vec<WebhookNotificationEvent>,
+    pub project_id: String,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]

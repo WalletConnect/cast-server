@@ -15,15 +15,15 @@ use {
         ChaCha20Poly1305,
         KeyInit,
     },
-    data_encoding::{BASE64URL_NOPAD, BASE64_NOPAD},
+    data_encoding::BASE64_NOPAD,
     futures::{executor, future, select, FutureExt, StreamExt},
     log::debug,
     mongodb::{bson::doc, Database},
     rand::{distributions::Uniform, prelude::Distribution},
     rand_core::OsRng,
     serde::{Deserialize, Serialize},
-    sha2::{Digest, Sha256},
-    std::{io::Read, sync::Arc, time::SystemTime},
+    sha2::Sha256,
+    std::{sync::Arc, time::SystemTime},
     tokio::sync::mpsc::Receiver,
     walletconnect_sdk::rpc::{
         domain::MessageId,
@@ -32,13 +32,11 @@ use {
             Payload,
             Publish,
             Request,
-            Response,
             Subscription,
             SubscriptionData,
             SuccessfulResponse,
         },
     },
-    x25519_dalek::x25519,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -342,7 +340,6 @@ async fn handle_subscribe_message(
             )
             .map_err(|_| crate::error::Error::EncryptionError("Failed to encrypt".into()))?;
         let msg: serde_json::Value = serde_json::from_slice(&msg)?;
-        dbg!(&msg);
 
         let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
 
@@ -372,8 +369,6 @@ async fn handle_subscribe_message(
                 return Ok(());
             }
         };
-
-        info!("Sent");
 
         let uniform = Uniform::from(0u8..=255);
 

@@ -9,6 +9,15 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Invalid event for webhook")]
+    InvalidEvent,
+
+    #[error("The provided url has invalid scheme")]
+    InvalidScheme,
+
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+
     #[error(transparent)]
     Envy(#[from] envy::Error),
 
