@@ -1,7 +1,7 @@
 use {
     crate::{
         auth::jwt_token,
-        error::{self},
+        error,
         jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification, PublishParams},
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0},

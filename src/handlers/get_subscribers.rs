@@ -6,7 +6,7 @@ use {
         response::IntoResponse,
         Json,
     },
-    futures::{TryStreamExt},
+    futures::TryStreamExt,
     std::sync::Arc,
 };
 

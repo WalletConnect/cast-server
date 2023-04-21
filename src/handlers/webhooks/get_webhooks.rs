@@ -1,16 +1,13 @@
 use {
     super::WebhookConfig,
-    crate::{
-        state::{AppState},
-        types::WebhookInfo,
-    },
+    crate::{state::AppState, types::WebhookInfo},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
         Json,
     },
-    futures::{TryStreamExt},
-    mongodb::{bson::doc},
+    futures::TryStreamExt,
+    mongodb::bson::doc,
     std::{collections::HashMap, sync::Arc},
 };
 

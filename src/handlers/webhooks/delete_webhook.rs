@@ -1,14 +1,11 @@
 use {
-    crate::{
-        state::{AppState},
-        types::WebhookInfo,
-    },
+    crate::{state::AppState, types::WebhookInfo},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
     },
-    mongodb::{bson::doc},
-    std::{sync::Arc},
+    mongodb::bson::doc,
+    std::sync::Arc,
     uuid::Uuid,
 };
 
