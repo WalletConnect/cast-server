@@ -18,8 +18,7 @@ use {
 };
 
 pub async fn handler(
-    Path(project_id): Path<String>,
-    Path(webhook_id): Path<Uuid>,
+    Path((project_id, webhook_id)): Path<(String, Uuid)>,
     State(state): State<Arc<AppState>>,
 ) -> std::result::Result<axum::response::Response, crate::error::Error> {
     state

@@ -7,7 +7,7 @@ use {
     },
     axum::{
         http,
-        routing::{delete, get, post},
+        routing::{delete, get, post, put},
         Router,
     },
     mongodb::options::{ClientOptions, ResolverConfig},
@@ -28,7 +28,6 @@ pub mod analytics;
 pub mod auth;
 pub mod config;
 pub mod error;
-mod extractors;
 pub mod handlers;
 pub mod jsonrpc;
 pub mod log;
@@ -121,6 +120,14 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
         .route(
             "/:project_id/:webhook_id",
             delete(handlers::webhooks::delete_webhook::handler),
+        )
+        .route(
+            "/:project_id/:webhook_id",
+            put(handlers::webhooks::update_webhook::handler),
+        )
+        .route(
+            "/:project_id/subscribers",
+            get(handlers::get_subscribers::handler),
         )
         .layer(global_middleware)
         .layer(cors)

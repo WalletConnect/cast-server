@@ -1,4 +1,5 @@
 use {
+    super::WebhookConfig,
     crate::{
         error::Result,
         state::{AppState, WebhookNotificationEvent},
@@ -10,58 +11,29 @@ use {
         Json,
     },
     log::info,
-    mongodb::bson::doc,
+    mongodb::{
+        bson,
+        bson::{doc, Bson},
+    },
     serde::{Deserialize, Serialize},
     std::sync::Arc,
     uuid::Uuid,
 };
 
-#[derive(Deserialize)]
-pub struct RegisterWebhookBody {
-    url: String,
-    events: Vec<WebhookNotificationEvent>,
-}
-
-#[derive(Serialize)]
-struct RegisterWebhookResponse {
-    id: String,
-}
-
 pub async fn handler(
-    Path(project_id): Path<String>,
+    Path((project_id, webhook_id)): Path<(String, Uuid)>,
     State(state): State<Arc<AppState>>,
-    Json(webhook_info): Json<RegisterWebhookBody>,
+    Json(webhook_info): Json<WebhookConfig>,
 ) -> std::result::Result<axum::response::Response, crate::error::Error> {
-    info!("Registering webhook for project: {}", project_id);
-    let webhook_id = Uuid::new_v4().to_string();
-
-    validate_url(&webhook_info.url)?;
-
-    let webhook = WebhookInfo {
-        id: webhook_id.clone(),
-        url: webhook_info.url,
-        events: webhook_info.events,
-        project_id,
-    };
-
-    dbg!("Inserting");
     state
         .database
-        .collection("webhooks")
-        .insert_one(webhook, None)
+        .collection::<WebhookInfo>("webhooks")
+        .update_one(
+            doc! {"project_id": project_id, "id": webhook_id.to_string()},
+            doc! {"$set": {"url": webhook_info.url, "events": bson::to_bson(&webhook_info.events)? } },
+            None,
+        )
         .await?;
 
-    Ok((
-        axum::http::StatusCode::CREATED,
-        Json(RegisterWebhookResponse { id: webhook_id }),
-    )
-        .into_response())
-}
-
-fn validate_url(url: &str) -> Result<()> {
-    let url = url::Url::parse(url)?;
-    if url.scheme() != "https" {
-        return Err(crate::error::Error::InvalidScheme);
-    }
-    Ok(())
+    Ok(axum::http::StatusCode::NO_CONTENT.into_response())
 }

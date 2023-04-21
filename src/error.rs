@@ -46,6 +46,9 @@ pub enum Error {
     SerdeJson(#[from] serde_json::error::Error),
 
     #[error(transparent)]
+    BsonSerialization(#[from] mongodb::bson::ser::Error),
+
+    #[error(transparent)]
     WebSocket(#[from] tungstenite::Error),
 
     #[error(transparent)]

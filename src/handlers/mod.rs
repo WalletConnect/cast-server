@@ -1,3 +1,4 @@
+pub mod get_subscribers;
 pub mod health;
 pub mod metrics;
 pub mod notify;

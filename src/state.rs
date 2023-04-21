@@ -149,7 +149,7 @@ impl AppState {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WebhookMessage {
     pub id: String,
     pub event: WebhookNotificationEvent,
