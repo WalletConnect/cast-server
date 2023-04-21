@@ -32,15 +32,19 @@ pub async fn handler(
         id: webhook_id.clone(),
         url: webhook_info.url,
         events: webhook_info.events,
-        project_id,
+        project_id: project_id.clone(),
     };
 
-    dbg!("Inserting");
     state
         .database
         .collection("webhooks")
         .insert_one(webhook, None)
         .await?;
+
+    info!(
+        "Webhook registered: {} for project:{}",
+        webhook_id, project_id
+    );
 
     Ok((
         axum::http::StatusCode::CREATED,

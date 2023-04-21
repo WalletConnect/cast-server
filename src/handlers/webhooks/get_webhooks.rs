@@ -7,6 +7,7 @@ use {
         Json,
     },
     futures::TryStreamExt,
+    log::info,
     mongodb::bson::doc,
     std::{collections::HashMap, sync::Arc},
 };
@@ -15,6 +16,8 @@ pub async fn handler(
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> std::result::Result<axum::response::Response, crate::error::Error> {
+    info!("Getting webhooks for project: {}", project_id);
+
     let mut result = HashMap::new();
 
     let mut cursor = state

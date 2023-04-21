@@ -3,7 +3,7 @@ use {
         auth::{jwt_token, SubscriptionAuth},
         handlers::subscribe_topic::ProjectData,
         log::{info, warn},
-        state::AppState,
+        state::{AppState, WebhookNotificationEvent},
         types::{ClientData, Envelope, EnvelopeType0, EnvelopeType1, LookupEntry, RegisterBody},
         wsclient::{self, WsClient},
         Result,
@@ -216,15 +216,10 @@ async fn handle_push_delete(
     let database = &state.database;
     let subscription_id = params.id;
     // TODO: Keep subscription id in db
-    if let Err(e) = client.unsubscribe(topic.clone(), subscription_id).await {
-        warn!("Error unsubscribing Cast from topic: {}", e);
-    };
-
-    let topic = topic.to_string();
 
     match database
         .collection::<LookupEntry>("lookup_table")
-        .find_one_and_delete(doc! {"_id": &topic }, None)
+        .find_one_and_delete(doc! {"_id": &topic.clone().to_string() }, None)
         .await
     {
         Ok(Some(LookupEntry {
@@ -258,6 +253,19 @@ async fn handle_push_delete(
                                         "Unregistered {} from {} with reason {}",
                                         account, project_id, msg
                                     );
+                                    if let Err(e) =
+                                        client.unsubscribe(topic.clone(), subscription_id).await
+                                    {
+                                        warn!("Error unsubscribing Cast from topic: {}", e);
+                                    };
+
+                                    state
+                                        .notify_webhook(
+                                            &project_id,
+                                            WebhookNotificationEvent::Unsubscribed,
+                                            &account,
+                                        )
+                                        .await?;
                                 }
                                 Err(e) => {
                                     warn!(
@@ -399,7 +407,6 @@ async fn handle_subscribe_message(
         let client_topic = sha256::digest(&*key);
         info!("client_topic: {}", &client_topic);
 
-        info!("sending");
         let id = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_millis() as u64;
@@ -445,7 +452,6 @@ async fn handle_subscribe_message(
             }),
         ))
         .await?;
-    // TODO: should be sth else
     Ok(())
 }
 

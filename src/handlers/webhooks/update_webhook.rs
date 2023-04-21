@@ -6,6 +6,7 @@ use {
         response::IntoResponse,
         Json,
     },
+    log::info,
     mongodb::{bson, bson::doc},
     std::sync::Arc,
     uuid::Uuid,
@@ -16,6 +17,10 @@ pub async fn handler(
     State(state): State<Arc<AppState>>,
     Json(webhook_info): Json<WebhookConfig>,
 ) -> std::result::Result<axum::response::Response, crate::error::Error> {
+    info!(
+        "Updating webhook: {} for project: {}",
+        webhook_id, project_id
+    );
     state
         .database
         .collection::<WebhookInfo>("webhooks")

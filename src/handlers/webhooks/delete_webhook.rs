@@ -4,6 +4,7 @@ use {
         extract::{Path, State},
         response::IntoResponse,
     },
+    log::info,
     mongodb::bson::doc,
     std::sync::Arc,
     uuid::Uuid,
@@ -13,6 +14,11 @@ pub async fn handler(
     Path((project_id, webhook_id)): Path<(String, Uuid)>,
     State(state): State<Arc<AppState>>,
 ) -> std::result::Result<axum::response::Response, crate::error::Error> {
+    info!(
+        "Deleting webhook: {} for project: {}",
+        webhook_id, project_id
+    );
+
     state
         .database
         .collection::<WebhookInfo>("webhooks")

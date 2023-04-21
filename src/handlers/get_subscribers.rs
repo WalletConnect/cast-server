@@ -7,6 +7,7 @@ use {
         Json,
     },
     futures::TryStreamExt,
+    log::info,
     std::sync::Arc,
 };
 
@@ -14,7 +15,8 @@ pub async fn handler(
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Result<axum::response::Response> {
-    // Find all registered users for project
+    info!("Getting subscribers for project: {}", project_id);
+
     let mut cursor = state
         .database
         .collection::<ClientData>(&project_id)

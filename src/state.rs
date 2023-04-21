@@ -1,6 +1,6 @@
 use {
     crate::{
-        error::{Result},
+        error::Result,
         metrics::Metrics,
         types::{ClientData, LookupEntry, RegisterBody, WebhookInfo},
         unregister_service::UnregisterMessage,
@@ -11,7 +11,7 @@ use {
     log::info,
     mongodb::{bson::doc, options::ReplaceOptions},
     serde::{Deserialize, Serialize},
-    std::sync::Arc,
+    std::{fmt, sync::Arc},
     url::Url,
     walletconnect_sdk::rpc::auth::ed25519_dalek::Keypair,
 };
@@ -114,6 +114,10 @@ impl AppState {
         event: WebhookNotificationEvent,
         account: &str,
     ) -> Result<()> {
+        info!(
+            "Triggering webhook for project: {}, with account: {} and event \"{}\"",
+            project_id, account, event
+        );
         let mut cursor = self
             .database
             .collection::<WebhookInfo>("webhooks")
@@ -161,4 +165,13 @@ pub struct WebhookMessage {
 pub enum WebhookNotificationEvent {
     Subscribed,
     Unsubscribed,
+}
+
+impl fmt::Display for WebhookNotificationEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            WebhookNotificationEvent::Subscribed => write!(f, "subscribed"),
+            WebhookNotificationEvent::Unsubscribed => write!(f, "unsubscribed"),
+        }
+    }
 }
