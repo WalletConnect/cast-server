@@ -109,11 +109,13 @@ impl UnregisterService {
                             match message {
                                 Ok(msg) => {
                                     let msg_id = msg.id();
+                                    if let Err(e) = self.client.send_ack(msg_id).await {
+                                        warn!("Failed responding to message: {} with err: {}", msg_id, e);
+                                    };
                                     if let Err(e) = handle_msg(msg, &self.state, &mut self.client).await {
                                         warn!("Error handling message: {}", e);
                                     }
 
-                                    self.client.send_ack(msg_id).await?
                                 },
                                 Err(_) => {
                                     warn!("Client handler has finished, spawning new one");
