@@ -193,6 +193,10 @@ async fn handle_msg(msg: Payload, state: &Arc<AppState>, client: &mut WsClient) 
                     info!("Received push subscribe on topic: {}", params.data.topic);
                     handle_subscribe_message(params, state, client, req.id).await?;
                 }
+                4008 => {
+                    info!("Received push update on topic: {}", params.data.topic);
+                    handle_update_message(params, state, client).await?;
+                }
                 _ => {
                     info!("Ignored tag: {}", params.data.tag);
                 }
@@ -215,7 +219,6 @@ async fn handle_push_delete(
     let topic = params.data.topic;
     let database = &state.database;
     let subscription_id = params.id;
-    // TODO: Keep subscription id in db
 
     match database
         .collection::<LookupEntry>("lookup_table")
@@ -356,6 +359,17 @@ async fn handle_subscribe_message(
             .ok_or(crate::error::Error::JsonGetError)?
             .as_u64()
             .ok_or(crate::error::Error::JsonGetError)?;
+
+        client
+            .send_raw(Payload::Response(
+                walletconnect_sdk::rpc::rpc::Response::Success(SuccessfulResponse {
+                    id: id.into(),
+                    jsonrpc: "2.0".into(),
+                    result: serde_json::Value::Bool(true),
+                }),
+            ))
+            .await?;
+
         let params = msg
             .get("params")
             .ok_or(crate::error::Error::JsonGetError)?
@@ -423,7 +437,6 @@ async fn handle_subscribe_message(
                 }),
             }))
             .await?;
-        // TODO: tu odp
         serde_json::from_slice(&claims)?
     };
 
@@ -443,15 +456,147 @@ async fn handle_subscribe_message(
         .await?;
 
     // Send response to relay
-    client
-        .send_raw(Payload::Response(
-            walletconnect_sdk::rpc::rpc::Response::Success(SuccessfulResponse {
-                id,
+
+    Ok(())
+}
+
+async fn handle_update_message(
+    params: Subscription,
+    state: &Arc<AppState>,
+    client: &mut WsClient,
+) -> Result<()> {
+    let Subscription {
+        data: SubscriptionData { message, topic, .. },
+        ..
+    } = params;
+
+    let topic = topic.to_string();
+
+    // Grab record from db
+    let lookup_data = state
+        .database
+        .collection::<LookupEntry>("lookup_table")
+        .find_one(doc!("_id":topic.clone()), None)
+        .await?
+        .ok_or(crate::error::Error::NoProjectDataForTopic(topic.clone()))?;
+    info!("Fetched data for topic: {:?}", &lookup_data);
+
+    let client_data = state
+        .database
+        .collection::<ClientData>(&lookup_data.project_id)
+        .find_one(doc!("_id": lookup_data.account), None)
+        .await?
+        .ok_or(crate::error::Error::NoClientDataForTopic(topic.clone()))?;
+
+    info!("Fetched client: {:?}", &client_data);
+
+    let envelope = EnvelopeType0::from_bytes(
+        base64::engine::general_purpose::STANDARD.decode(message.to_string())?,
+    );
+
+    let encryption_key = hex::decode(client_data.sym_key.clone())?;
+
+    let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
+
+    let sub_auth: SubscriptionAuth = {
+        let msg = cipher
+            .decrypt(
+                GenericArray::from_slice(&envelope.iv),
+                chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
+            )
+            .map_err(|_| crate::error::Error::EncryptionError("Failed to encrypt".into()))?;
+        let msg: serde_json::Value = serde_json::from_slice(&msg)?;
+
+        let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
+
+        let id = msg
+            .get("id")
+            .ok_or(crate::error::Error::JsonGetError)?
+            .as_u64()
+            .ok_or(crate::error::Error::JsonGetError)?;
+
+        let params = msg
+            .get("params")
+            .ok_or(crate::error::Error::JsonGetError)?
+            .as_object()
+            .ok_or(crate::error::Error::JsonGetError)?;
+
+        let jwt = params
+            .get("subscriptionAuth")
+            .ok_or(crate::error::Error::SubscriptionAuthError(
+                "Subscription auth missing in request".into(),
+            ))?
+            .to_string();
+
+        let claims = jwt.split(".").collect::<Vec<&str>>()[1];
+
+        let claims = match BASE64_NOPAD.decode(claims.as_bytes()) {
+            Ok(claims) => claims,
+            Err(_) => {
+                info!("Invalid JWT");
+                return Ok(());
+            }
+        };
+
+        let uniform = Uniform::from(0u8..=255);
+
+        let mut rng = OsRng {};
+        let nonce: GenericArray<u8, U12> =
+            GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
+
+        let response = Payload::Response(walletconnect_sdk::rpc::rpc::Response::Success(
+            SuccessfulResponse {
+                id: id.into(),
                 jsonrpc: "2.0".into(),
                 result: serde_json::Value::Bool(true),
-            }),
-        ))
+            },
+        ));
+        let response = cipher
+            .encrypt(&nonce, serde_json::to_string(&response)?.as_bytes())
+            .map_err(|_| crate::error::Error::EncryptionError("Encryption failed".into()))?;
+
+        let envelope = EnvelopeType0 {
+            envelope_type: 0,
+            iv: nonce.into(),
+            sealbox: response.to_vec(),
+        };
+        let base64_notification =
+            base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
+
+        let id = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_millis() as u64;
+        client
+            .send_raw(Payload::Request(Request {
+                id: id.into(),
+                jsonrpc: "2.0".into(),
+                params: Params::Publish(Publish {
+                    topic: topic.into(),
+                    message: base64_notification.into(),
+                    ttl_secs: 86400,
+                    tag: 4009,
+                    prompt: false,
+                }),
+            }))
+            .await?;
+        serde_json::from_slice(&claims)?
+    };
+
+    let client_data = RegisterBody {
+        account: sub_auth.sub.trim_start_matches("did:pkh:").into(),
+        relay_url: state.config.relay_url.clone(),
+        sym_key: client_data.sym_key.clone(),
+    };
+    info!("Updating client: {:?}", &client_data);
+
+    state
+        .register_client(
+            &lookup_data.project_id,
+            &client_data,
+            &url::Url::parse(&state.config.relay_url)?,
+        )
         .await?;
+
     Ok(())
 }
 

@@ -14,7 +14,6 @@ pub async fn handler(
     Json(data): Json<RegisterBody>,
 ) -> Result<axum::response::Response, crate::error::Error> {
     let url = url::Url::parse(&data.relay_url)?;
-
     state.register_client(&project_id, &data, &url).await?;
 
     #[cfg(test)]

@@ -14,6 +14,8 @@ use {
     },
     parquet::data_type::AsBytes,
     rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng},
+    serde_json::json,
+    sha2::Sha256,
     std::{collections::HashMap, time::Duration},
     tokio::time::sleep,
     walletconnect_sdk::rpc::{
@@ -266,7 +268,7 @@ async fn test_unregister() {
 fn jwt() {
     let mut rng = StdRng::from_entropy();
 
-    let relay_url = "wss://staging.relay.walletconnect.com";
+    let relay_url = "wss://relay.walletconnect.com";
     let keypair = Keypair::generate(&mut rng);
     let jwt = jwt_token(&relay_url, &keypair).unwrap();
     dbg!(&jwt);
@@ -281,7 +283,7 @@ fn create_envelope() {
     let secret = StaticSecret::from(seed);
     let public = PublicKey::from(&secret);
 
-    let proj_pub_key = "39ef9c00a026891a03061d3d80c7b9df16c67d1cae830a0c204df6cae888fd44";
+    let proj_pub_key = "d5b787c8b6c19a9da1f2f1d745fa2020ce29ba0554e46e622b00a6f7bc051c6d";
     let sym_key = derive_key(proj_pub_key.to_string(), hex::encode(secret));
     dbg!(&sym_key);
     let encryption_key = hex::decode(sym_key).unwrap();
@@ -318,10 +320,10 @@ fn create_envelope() {
     let claims = serde_json::to_string(&sub_auth).unwrap();
     let base64_claims = base64::engine::general_purpose::STANDARD_NO_PAD.encode(claims.as_bytes());
 
-    let mut map = HashMap::new();
-    map.insert("subscriptionAuth", format!("test.{base64_claims}.test"));
+    let auth = format!("test.{base64_claims}.test");
+    let request = json!({"id": "1", "jsonrpc": "2.0", "params": json!({"subscriptionAuth": auth})});
 
-    let message = serde_json::to_string(&map).unwrap();
+    let message = serde_json::to_string(&request).unwrap();
     dbg!(&message);
 
     let encrypted = cipher.encrypt(&nonce, message.as_bytes()).unwrap();
@@ -395,7 +397,12 @@ fn derive_key(pubkey: String, privkey: String) -> String {
     let public_key = x25519_dalek::PublicKey::from(pubkey);
 
     let shared_key = secret_key.diffie_hellman(&public_key);
-    hex::encode(shared_key.as_bytes())
+
+    let derived_key = hkdf::Hkdf::<Sha256>::new(None, shared_key.as_bytes());
+
+    let mut expanded_key = [0u8; 32];
+    derived_key.expand(b"", &mut expanded_key).unwrap();
+    hex::encode(expanded_key)
 }
 
 // #[test]
