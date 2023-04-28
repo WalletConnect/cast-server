@@ -114,15 +114,15 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
             get(handlers::webhooks::register_webhook::handler),
         )
         .route(
-            "/:project_id/registered-webhooks",
+            "/:project_id/webhooks",
             get(handlers::webhooks::get_webhooks::handler),
         )
         .route(
-            "/:project_id/:webhook_id",
+            "/:project_id/webhooks/:webhook_id",
             delete(handlers::webhooks::delete_webhook::handler),
         )
         .route(
-            "/:project_id/:webhook_id",
+            "/:project_id/webhooks/:webhook_id",
             put(handlers::webhooks::update_webhook::handler),
         )
         .route(

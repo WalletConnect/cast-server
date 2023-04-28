@@ -1,11 +1,12 @@
 use {
+    aws_config::imds::client,
     base64::Engine,
     cast_server::{
         auth::{jwt_token, SubscriptionAuth},
         handlers::notify::NotifyBody,
-        jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification},
+        jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification, PublishParams},
         types::{Envelope, EnvelopeType0, EnvelopeType1, RegisterBody},
-        wsclient,
+        wsclient::{self, WsClient},
     },
     chacha20poly1305::{
         aead::{generic_array::GenericArray, AeadMut, OsRng},
@@ -16,11 +17,14 @@ use {
     rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng},
     serde_json::json,
     sha2::Sha256,
-    std::{collections::HashMap, time::Duration},
+    std::{
+        collections::{HashMap, HashSet},
+        time::Duration,
+    },
     tokio::time::sleep,
     walletconnect_sdk::rpc::{
         auth::ed25519_dalek::Keypair,
-        rpc::{Params, Payload},
+        rpc::{Params, Payload, Publish, Request},
     },
     x25519_dalek::{PublicKey, StaticSecret},
 };
@@ -39,7 +43,7 @@ fn urls(env: String) -> (String, String) {
         ),
         "LOCAL" => (
             "http://127.0.0.1:3000".to_owned(),
-            "wss://staging.cast.walletconnect.com".to_owned(),
+            "wss://staging.relay.walletconnect.com".to_owned(),
         ),
         _ => panic!("Invalid environment"),
     }
@@ -72,10 +76,13 @@ async fn cast_properly_sending_message() {
     let test_account = "test_account_send_test".to_owned();
 
     // Create valid account
+    let scope: HashSet<String> = std::iter::once("test".into()).collect();
+
     let body = RegisterBody {
         account: test_account.clone(),
         relay_url,
-        sym_key: hex_key.clone(),
+        sym_key: hex_key,
+        scope,
     };
 
     // Register valid account
@@ -95,6 +102,7 @@ async fn cast_properly_sending_message() {
         body: "test".to_owned(),
         icon: "test".to_owned(),
         url: "test".to_owned(),
+        notification_type: "test".to_owned(),
     };
 
     // Prepare notify body
@@ -173,15 +181,18 @@ async fn test_unregister() {
         .await
         .unwrap();
 
-    let hex_key = hex::encode(key);
+    let hex_key = hex::encode(key.clone());
 
     let test_account = "test_account_unregister".to_owned();
 
     // Create valid account
+    let scope: HashSet<String> = std::iter::once("test".into()).collect();
+
     let body = RegisterBody {
-        account: test_account.clone(),
-        relay_url: relay_url.clone(),
+        account: "test_account".to_owned(),
+        relay_url,
         sym_key: hex_key.clone(),
+        scope,
     };
 
     // Register valid account
@@ -237,6 +248,7 @@ async fn test_unregister() {
         body: "test".to_owned(),
         icon: "test".to_owned(),
         url: "test".to_owned(),
+        notification_type: "test".to_owned(),
     };
 
     // Prepare notify body
@@ -268,7 +280,7 @@ async fn test_unregister() {
 fn jwt() {
     let mut rng = StdRng::from_entropy();
 
-    let relay_url = "wss://relay.walletconnect.com";
+    let relay_url = "wss://staging.relay.walletconnect.com";
     let keypair = Keypair::generate(&mut rng);
     let jwt = jwt_token(&relay_url, &keypair).unwrap();
     dbg!(&jwt);
@@ -314,7 +326,7 @@ fn create_envelope() {
         aud: "".into(),
         sub: "did:pkh:eip155:2:0xbE016C33C395A0891A10626Def9c5C13d8699990".into(),
         act: "".into(),
-        scp: "".into(),
+        scp: "test".into(),
     };
 
     let claims = serde_json::to_string(&sub_auth).unwrap();
@@ -404,30 +416,3 @@ fn derive_key(pubkey: String, privkey: String) -> String {
     derived_key.expand(b"", &mut expanded_key).unwrap();
     hex::encode(expanded_key)
 }
-
-// #[test]
-// fn test_derive2() {
-//     let mut rng = StdRng::from_entropy();
-//     let keypair = Keypair::generate(&mut rng);
-
-//     let keypair_1 = Keypair::generate(&mut rng);
-
-//     let shared1 = derive_key(
-//         keypair_1.public_key().as_bytes(),
-//         keypair.secret_key().as_bytes(),
-//     );
-//     let shared2 = derive_key(
-//         keypair.public_key().as_bytes(),
-//         keypair_1.secret_key().as_bytes(),
-//     );
-//     dbg!(shared1);
-//     dbg!(shared2);
-// }
-// fn derive_key(pubkey: &[u8; 32], privkey: &[u8; 32]) -> [u8; 32] {
-//     let secret_key = x25519_dalek::StaticSecret::from(*privkey);
-//     let public_key = x25519_dalek::PublicKey::from(*pubkey);
-
-//     let shared_key = secret_key.diffie_hellman(&public_key);
-//     let final_res: [u8; 32] = shared_key.to_bytes().try_into().unwrap();
-//     final_res
-// }

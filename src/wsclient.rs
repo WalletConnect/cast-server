@@ -49,10 +49,12 @@ impl WsClient {
     }
 
     pub async fn send(&mut self, msg: Request) -> Result<()> {
+        dbg!(&msg);
         self.send_raw(Payload::Request(msg)).await
     }
 
     pub async fn send_ack(&mut self, id: walletconnect_sdk::rpc::domain::MessageId) -> Result<()> {
+        dbg!("Sending ACK for id: {:?}", id);
         self.send_raw(Payload::Response(
             walletconnect_sdk::rpc::rpc::Response::Success(SuccessfulResponse::new(
                 id,
@@ -83,7 +85,9 @@ impl WsClient {
         loop {
             match self.rx.recv().await {
                 Some(msg) => match msg? {
-                    Message::Text(msg) => return Ok(serde_json::from_str(&msg).unwrap()),
+                    Message::Text(msg) => {
+                        return Ok(serde_json::from_str(&msg)?);
+                    }
                     Message::Ping(_) => {
                         info!("Received ping from Relay WS, sending pong");
                         self.pong().await?;

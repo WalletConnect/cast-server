@@ -18,7 +18,7 @@ pub async fn handler(
 ) -> std::result::Result<axum::response::Response, crate::error::Error> {
     info!("Getting webhooks for project: {}", project_id);
 
-    let mut result = HashMap::new();
+    let mut webhooks = HashMap::new();
 
     let mut cursor = state
         .database
@@ -32,8 +32,8 @@ pub async fn handler(
             url: webhook.url,
             events: webhook.events,
         };
-        result.insert(webhook.id, webhook_config);
+        webhooks.insert(webhook.id, webhook_config);
     }
 
-    Ok((axum::http::StatusCode::OK, Json(result)).into_response())
+    Ok((axum::http::StatusCode::OK, Json(webhooks)).into_response())
 }

@@ -1,7 +1,7 @@
 use {
     crate::state::WebhookNotificationEvent,
     serde::{Deserialize, Serialize},
-    std::env,
+    std::{collections::HashSet, env},
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,6 +19,7 @@ pub struct RegisterBody {
     #[serde(default = "default_relay_url")]
     pub relay_url: String,
     pub sym_key: String,
+    pub scope: HashSet<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,6 +28,8 @@ pub struct ClientData {
     pub id: String,
     pub relay_url: String,
     pub sym_key: String,
+    #[serde(default)]
+    pub scope: HashSet<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

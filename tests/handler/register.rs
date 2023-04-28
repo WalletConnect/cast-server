@@ -2,6 +2,7 @@ use {
     crate::context::ServerContext,
     cast_server::types::RegisterBody,
     chacha20poly1305::KeyInit,
+    std::collections::HashSet,
     test_context::test_context,
 };
 
@@ -16,10 +17,13 @@ async fn test_register(ctx: &mut ServerContext) {
     // Fix the url for register body
     let relay_url = ctx.relay_url.replace("http", "ws");
 
+    let scope: HashSet<String> = std::iter::once("test".into()).collect();
+
     let body = RegisterBody {
         account: "test_account".to_owned(),
         relay_url,
         sym_key: hex_key,
+        scope,
     };
 
     let status = client

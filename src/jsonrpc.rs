@@ -30,6 +30,8 @@ pub struct Notification {
     pub body: String,
     pub icon: String,
     pub url: String,
+    #[serde(rename = "type")]
+    pub notification_type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

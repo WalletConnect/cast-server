@@ -64,7 +64,10 @@ pub async fn handler(
     let timer = std::time::Instant::now();
     let db = state.database.clone();
     let mut rng = OsRng {};
-
+    let NotifyBody {
+        notification,
+        accounts,
+    } = cast_args;
     let mut confirmed_sends = HashSet::new();
     let mut failed_sends: HashSet<SendFailure> = HashSet::new();
 
@@ -76,15 +79,15 @@ pub async fn handler(
     let message = serde_json::to_string(&JsonRpcPayload {
         id,
         jsonrpc: "2.0".to_string(),
-        params: JsonRpcParams::Push(cast_args.notification),
+        params: JsonRpcParams::Push(notification.clone()),
     })?;
-
-    // Fetching accounts from db
-    let accounts = cast_args.accounts;
 
     let mut cursor = db
         .collection::<ClientData>(&project_id)
-        .find(doc! { "_id": {"$in": &accounts}}, None)
+        .find(
+            doc! { "_id": {"$in": &accounts}, "scope": { "$elemMatch": { "$eq": &notification.notification_type} }},
+            None,
+        )
         .await?;
 
     let mut not_found: HashSet<String> = accounts.into_iter().collect();

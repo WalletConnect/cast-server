@@ -63,6 +63,7 @@ impl AppState {
             id: client_data.account.clone(),
             relay_url: url.to_string().trim_end_matches('/').to_string(),
             sym_key: client_data.sym_key.clone(),
+            scope: client_data.scope.clone(),
         };
         // Currently overwriting the document if it exists,
         // but we should probably just update the fields
@@ -126,7 +127,6 @@ impl AppState {
 
         // Interate over cursor
         while let Some(webhook) = cursor.try_next().await? {
-            dbg!(&webhook);
             if !webhook.events.contains(&event) {
                 continue;
             }

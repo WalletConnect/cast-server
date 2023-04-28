@@ -2,6 +2,7 @@ use {
     crate::context::ServerContext,
     cast_server::{handlers::notify::NotifyBody, jsonrpc::Notification, types::RegisterBody},
     chacha20poly1305::KeyInit,
+    std::collections::HashSet,
     test_context::test_context,
 };
 
@@ -20,10 +21,13 @@ async fn test_notify(ctx: &mut ServerContext) {
     let relay_url = ctx.relay_url.replace("http", "ws").trim().to_string();
 
     // Create valid account
+    let scope: HashSet<String> = std::iter::once("test".into()).collect();
+
     let body = RegisterBody {
-        account: test_account.clone(),
+        account: "test_account".to_owned(),
         relay_url,
         sym_key: hex_key.clone(),
+        scope,
     };
 
     // Register valid account
@@ -40,10 +44,13 @@ async fn test_notify(ctx: &mut ServerContext) {
     assert!(status.status().is_success());
 
     // Prepare invalid account
+    let scope: HashSet<String> = std::iter::once("test".into()).collect();
+
     let body = RegisterBody {
-        account: test_account_invalid_relay.clone(),
-        relay_url: "wss://not-a-relay.com".to_string(),
+        account: "test_account_invalid".to_owned(),
+        relay_url: "invalid_relay".to_owned(),
         sym_key: hex_key,
+        scope,
     };
 
     // Register account with invalid relay
@@ -66,6 +73,7 @@ async fn test_notify(ctx: &mut ServerContext) {
         body: "test".to_owned(),
         icon: "test".to_owned(),
         url: "test".to_owned(),
+        notification_type: "test".to_owned(),
     };
 
     // Prepare notify body

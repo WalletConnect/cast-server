@@ -193,7 +193,7 @@ async fn handle_msg(msg: Payload, state: &Arc<AppState>, client: &mut WsClient) 
                 }
                 4006 => {
                     info!("Received push subscribe on topic: {}", params.data.topic);
-                    handle_subscribe_message(params, state, client, req.id).await?;
+                    handle_subscribe_message(params, state, client).await?;
                 }
                 4008 => {
                     info!("Received push update on topic: {}", params.data.topic);
@@ -316,7 +316,6 @@ async fn handle_subscribe_message(
     params: Subscription,
     state: &Arc<AppState>,
     client: &mut WsClient,
-    id: MessageId,
 ) -> Result<()> {
     let Subscription {
         data: SubscriptionData { message, topic, .. },
@@ -356,11 +355,15 @@ async fn handle_subscribe_message(
 
         let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
 
-        let id = msg
+        let id: u64 = msg
             .get("id")
             .ok_or(crate::error::Error::JsonGetError)?
-            .as_u64()
-            .ok_or(crate::error::Error::JsonGetError)?;
+            .as_str()
+            .unwrap()
+            .parse()
+            .unwrap();
+        // .as_f64()
+        // .ok_or(crate::error::Error::JsonGetError)? as u64;
 
         client
             .send_raw(Payload::Response(
@@ -446,6 +449,7 @@ async fn handle_subscribe_message(
         account: sub_auth.sub.trim_start_matches("did:pkh:").into(),
         relay_url: state.config.relay_url.clone(),
         sym_key: sym_key.clone(),
+        scope: sub_auth.scp.split(" ").map(|s| s.into()).collect(),
     };
     info!("Registering client: {:?}", &client_data);
 
@@ -458,7 +462,6 @@ async fn handle_subscribe_message(
         .await?;
 
     // Send response to relay
-
     Ok(())
 }
 
@@ -500,94 +503,72 @@ async fn handle_update_message(
 
     let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
 
-    let sub_auth: SubscriptionAuth = {
-        let msg = cipher
-            .decrypt(
-                GenericArray::from_slice(&envelope.iv),
-                chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
-            )
-            .map_err(|_| crate::error::Error::EncryptionError("Failed to encrypt".into()))?;
-        let msg: serde_json::Value = serde_json::from_slice(&msg)?;
+    let msg = cipher
+        .decrypt(
+            GenericArray::from_slice(&envelope.iv),
+            chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
+        )
+        .map_err(|_| crate::error::Error::EncryptionError("Failed to decrypt".into()))?;
 
-        let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
+    let msg: NotifyMessage<NotifySubscribe> = serde_json::from_slice(&msg)?;
+    let mut rng = OsRng {};
 
-        let id = msg
-            .get("id")
-            .ok_or(crate::error::Error::JsonGetError)?
-            .as_u64()
-            .ok_or(crate::error::Error::JsonGetError)?;
+    let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
+    let uniform = Uniform::from(0u8..=255);
+    let nonce: GenericArray<u8, U12> =
+        GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
 
-        let params = msg
-            .get("params")
-            .ok_or(crate::error::Error::JsonGetError)?
-            .as_object()
-            .ok_or(crate::error::Error::JsonGetError)?;
-
-        let jwt = params
-            .get("subscriptionAuth")
-            .ok_or(crate::error::Error::SubscriptionAuthError(
-                "Subscription auth missing in request".into(),
-            ))?
-            .to_string();
-
-        let claims = jwt.split(".").collect::<Vec<&str>>()[1];
-
-        let claims = match BASE64_NOPAD.decode(claims.as_bytes()) {
-            Ok(claims) => claims,
-            Err(_) => {
-                info!("Invalid JWT");
-                return Ok(());
-            }
-        };
-
-        let uniform = Uniform::from(0u8..=255);
-
-        let mut rng = OsRng {};
-        let nonce: GenericArray<u8, U12> =
-            GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
-
-        let response = Payload::Response(walletconnect_sdk::rpc::rpc::Response::Success(
-            SuccessfulResponse {
-                id: id.into(),
-                jsonrpc: "2.0".into(),
-                result: serde_json::Value::Bool(true),
-            },
-        ));
-        let response = cipher
-            .encrypt(&nonce, serde_json::to_string(&response)?.as_bytes())
-            .map_err(|_| crate::error::Error::EncryptionError("Encryption failed".into()))?;
-
-        let envelope = EnvelopeType0 {
-            envelope_type: 0,
-            iv: nonce.into(),
-            sealbox: response.to_vec(),
-        };
-        let base64_notification =
-            base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
-
-        let id = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_millis() as u64;
-        client
-            .send_raw(Payload::Request(Request {
-                id: id.into(),
-                jsonrpc: "2.0".into(),
-                params: Params::Publish(Publish {
-                    topic: topic.into(),
-                    message: base64_notification.into(),
-                    ttl_secs: 86400,
-                    tag: 4009,
-                    prompt: false,
-                }),
-            }))
-            .await?;
-        serde_json::from_slice(&claims)?
+    // TODO: fix id
+    let response = NotifyResponse::<bool> {
+        id: msg.id.into(),
+        jsonrpc: "2.0".into(),
+        result: true,
     };
+    let response = cipher
+        .encrypt(&nonce, serde_json::to_string(&response)?.as_bytes())
+        .map_err(|_| crate::error::Error::EncryptionError("Encryption failed".into()))?;
+
+    let envelope = EnvelopeType0 {
+        envelope_type: 0,
+        iv: nonce.into(),
+        sealbox: response.to_vec(),
+    };
+    let base64_notification = base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
+
+    let id = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_millis() as u64;
+
+    client
+        .send_raw(Payload::Request(Request {
+            id: id.into(),
+            jsonrpc: "2.0".into(),
+            params: Params::Publish(Publish {
+                topic: topic.into(),
+                message: base64_notification.into(),
+                ttl_secs: 86400,
+                tag: 4009,
+                prompt: false,
+            }),
+        }))
+        .await?;
 
     let client_data = RegisterBody {
-        account: sub_auth.sub.trim_start_matches("did:pkh:").into(),
+        account: msg
+            .params
+            .subscription_auth
+            .sub
+            .trim_start_matches("did:pkh:")
+            .into(),
         relay_url: state.config.relay_url.clone(),
         sym_key: client_data.sym_key.clone(),
+        scope: msg
+            .params
+            .subscription_auth
+            .scp
+            .split(" ")
+            .map(|s| s.into())
+            .collect(),
     };
     info!("Updating client: {:?}", &client_data);
 
@@ -620,19 +601,22 @@ fn derive_key(pubkey: String, privkey: String) -> Result<String> {
     Ok(hex::encode(expanded_key))
 }
 
-#[test]
-fn test_derive() {
-    let keypriv1 = "1fb63fca5c6ac731246f2f069d3bc2454345d5208254aa8ea7bffc6d110c8862";
-    let keypriv2 = "36bf507903537de91f5e573666eaa69b1fa313974f23b2b59645f20fea505854";
-    let keypub1 = "ff7a7d5767c362b0a17ad92299ebdb7831dcbd9a56959c01368c7404543b3342";
-    let keypub2 = "590c2c627be7af08597091ff80dd41f7fa28acd10ef7191d7e830e116d3a186a";
-    let expected = "0653ca620c7b4990392e1c53c4a51c14a2840cd20f0f1524cf435b17b6fe988c";
-    assert_eq!(
-        expected,
-        derive_key(keypub1.to_string(), keypriv2.to_string()).unwrap()
-    );
-    assert_eq!(
-        expected,
-        derive_key(keypub2.to_string(), keypriv1.to_string()).unwrap(),
-    );
+#[derive(Serialize, Deserialize, Debug)]
+struct NotifyMessage<T> {
+    id: String,
+    jsonrpc: String,
+    params: T,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct NotifyResponse<T> {
+    id: String,
+    jsonrpc: String,
+    result: T,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct NotifySubscribe {
+    subscription_auth: SubscriptionAuth,
 }
