@@ -1,12 +1,11 @@
 use {
-    aws_config::imds::client,
     base64::Engine,
     cast_server::{
         auth::{jwt_token, SubscriptionAuth},
         handlers::notify::NotifyBody,
-        jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification, PublishParams},
+        jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification},
         types::{Envelope, EnvelopeType0, EnvelopeType1, RegisterBody},
-        wsclient::{self, WsClient},
+        wsclient,
     },
     chacha20poly1305::{
         aead::{generic_array::GenericArray, AeadMut, OsRng},
@@ -17,14 +16,11 @@ use {
     rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng},
     serde_json::json,
     sha2::Sha256,
-    std::{
-        collections::{HashMap, HashSet},
-        time::Duration,
-    },
+    std::{collections::HashSet, time::Duration},
     tokio::time::sleep,
     walletconnect_sdk::rpc::{
         auth::ed25519_dalek::Keypair,
-        rpc::{Params, Payload, Publish, Request},
+        rpc::{Params, Payload},
     },
     x25519_dalek::{PublicKey, StaticSecret},
 };
@@ -388,8 +384,8 @@ fn create_envelope() {
 
 #[test]
 fn test_derive() {
-    let priv1 = StaticSecret::new(OsRng);
-    let priv2 = StaticSecret::new(OsRng);
+    let priv1 = StaticSecret::random_from_rng(OsRng);
+    let priv2 = StaticSecret::random_from_rng(OsRng);
 
     let pub1 = PublicKey::from(&priv1);
     let pub2 = PublicKey::from(&priv2);

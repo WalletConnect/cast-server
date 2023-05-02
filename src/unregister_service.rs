@@ -22,21 +22,15 @@ use {
     rand::{distributions::Uniform, prelude::Distribution},
     rand_core::OsRng,
     serde::{Deserialize, Serialize},
+    serde_json::{json, Value},
     sha2::Sha256,
     std::{sync::Arc, time::SystemTime},
     tokio::sync::mpsc::Receiver,
     walletconnect_sdk::rpc::{
         domain::MessageId,
-        rpc::{
-            Params,
-            Payload,
-            Publish,
-            Request,
-            Subscription,
-            SubscriptionData,
-            SuccessfulResponse,
-        },
+        rpc::{Params, Payload, Publish, Request, Subscription, SubscriptionData},
     },
+    x25519_dalek::{PublicKey, StaticSecret},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -335,46 +329,32 @@ async fn handle_subscribe_message(
     let envelope = EnvelopeType1::from_bytes(
         base64::engine::general_purpose::STANDARD.decode(message.to_string())?,
     );
+    let client_pubkey = envelope.pubkey;
 
     info!("pubkey: {}", hex::encode(&envelope.pubkey));
 
-    let sym_key = derive_key(hex::encode(envelope.pubkey), project_data.private_key)?;
-    info!("sym_key: {}", &sym_key);
+    let response_sym_key = derive_key(hex::encode(client_pubkey), project_data.private_key)?;
+    info!("response_sym_key: {}", &response_sym_key);
 
-    let encryption_key = hex::decode(&sym_key)?;
-    let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
+    let response_encryption_key = hex::decode(&response_sym_key)?;
+    let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&response_encryption_key));
+
+    let msg = cipher
+        .decrypt(
+            GenericArray::from_slice(&envelope.iv),
+            chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
+        )
+        .map_err(|_| crate::error::Error::EncryptionError("Failed to encrypt".into()))?;
+    let msg: serde_json::Value = serde_json::from_slice(&msg)?;
+    let id: u64 = msg
+        .get("id")
+        .ok_or(crate::error::Error::JsonGetError)?
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
 
     let sub_auth: SubscriptionAuth = {
-        let msg = cipher
-            .decrypt(
-                GenericArray::from_slice(&envelope.iv),
-                chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
-            )
-            .map_err(|_| crate::error::Error::EncryptionError("Failed to encrypt".into()))?;
-        let msg: serde_json::Value = serde_json::from_slice(&msg)?;
-
-        let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
-
-        let id: u64 = msg
-            .get("id")
-            .ok_or(crate::error::Error::JsonGetError)?
-            .as_str()
-            .unwrap()
-            .parse()
-            .unwrap();
-        // .as_f64()
-        // .ok_or(crate::error::Error::JsonGetError)? as u64;
-
-        client
-            .send_raw(Payload::Response(
-                walletconnect_sdk::rpc::rpc::Response::Success(SuccessfulResponse {
-                    id: id.into(),
-                    jsonrpc: "2.0".into(),
-                    result: serde_json::Value::Bool(true),
-                }),
-            ))
-            .await?;
-
         let params = msg
             .get("params")
             .ok_or(crate::error::Error::JsonGetError)?
@@ -397,58 +377,64 @@ async fn handle_subscribe_message(
             }
         };
 
-        let uniform = Uniform::from(0u8..=255);
-
-        let mut rng = OsRng {};
-        let nonce: GenericArray<u8, U12> =
-            GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
-
-        let response = Payload::Response(walletconnect_sdk::rpc::rpc::Response::Success(
-            SuccessfulResponse {
-                id: id.into(),
-                jsonrpc: "2.0".into(),
-                result: serde_json::Value::Bool(true),
-            },
-        ));
-        let response = cipher
-            .encrypt(&nonce, serde_json::to_string(&response)?.as_bytes())
-            .map_err(|_| crate::error::Error::EncryptionError("Encryption failed".into()))?;
-
-        let envelope = EnvelopeType0 {
-            envelope_type: 0,
-            iv: nonce.into(),
-            sealbox: response.to_vec(),
-        };
-        let base64_notification =
-            base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
-
-        let key = hex::decode(sym_key.clone())?;
-        let client_topic = sha256::digest(&*key);
-        info!("client_topic: {}", &client_topic);
-
-        let id = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_millis() as u64;
-        client
-            .send_raw(Payload::Request(Request {
-                id: id.into(),
-                jsonrpc: "2.0".into(),
-                params: Params::Publish(Publish {
-                    topic: client_topic.into(),
-                    message: base64_notification.into(),
-                    ttl_secs: 86400,
-                    tag: 4007,
-                    prompt: false,
-                }),
-            }))
-            .await?;
         serde_json::from_slice(&claims)?
     };
+    let uniform = Uniform::from(0u8..=255);
+
+    let mut rng = OsRng {};
+    let nonce: GenericArray<u8, U12> =
+        GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
+
+    let secret = StaticSecret::random_from_rng(chacha20poly1305::aead::OsRng {});
+    let public = PublicKey::from(&secret);
+
+    let response = NotifyResponse::<Value> {
+        id: id.to_string(),
+        jsonrpc: "2.0".into(),
+        result: json!({"publicKey": hex::encode(public.to_bytes())}),
+    };
+    info!("response: {}", serde_json::to_string(&response)?);
+
+    let push_key = derive_key(hex::encode(client_pubkey), hex::encode(secret))?;
+    info!("push_key: {}", &push_key);
+
+    let response = cipher
+        .encrypt(&nonce, serde_json::to_string(&response)?.as_bytes())
+        .map_err(|_| crate::error::Error::EncryptionError("Encryption failed".into()))?;
+
+    let envelope = EnvelopeType0 {
+        envelope_type: 0,
+        iv: nonce.into(),
+        sealbox: response.to_vec(),
+    };
+
+    let base64_notification = base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
+
+    let key = hex::decode(response_sym_key)?;
+    let response_topic = sha256::digest(&*key);
+    info!("response_topic: {}", &response_topic);
+
+    let id = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_millis() as u64;
+    client
+        .send_raw(Payload::Request(Request {
+            id: id.into(),
+            jsonrpc: "2.0".into(),
+            params: Params::Publish(Publish {
+                topic: response_topic.into(),
+                message: base64_notification.into(),
+                ttl_secs: 86400,
+                tag: 4007,
+                prompt: false,
+            }),
+        }))
+        .await?;
 
     let client_data = RegisterBody {
         account: sub_auth.sub.trim_start_matches("did:pkh:").into(),
         relay_url: state.config.relay_url.clone(),
-        sym_key: sym_key.clone(),
+        sym_key: push_key.clone(),
         scope: sub_auth.scp.split(" ").map(|s| s.into()).collect(),
     };
     info!("Registering client: {:?}", &client_data);
@@ -461,7 +447,6 @@ async fn handle_subscribe_message(
         )
         .await?;
 
-    // Send response to relay
     Ok(())
 }
 
