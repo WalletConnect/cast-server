@@ -2,8 +2,8 @@ use {
     crate::{auth::jwt_token, error::Result},
     dashmap::DashMap,
     futures::{future, StreamExt},
-    rand::{thread_rng, Rng},
-    std::sync::Arc,
+    rand::Rng,
+    std::{sync::Arc, time::SystemTime},
     tokio::{select, sync::mpsc},
     tokio_stream::wrappers::ReceiverStream,
     tracing::{info, warn},
@@ -49,7 +49,6 @@ impl WsClient {
     }
 
     pub async fn send(&mut self, msg: Request) -> Result<()> {
-        dbg!(&msg);
         self.send_raw(Payload::Request(msg)).await
     }
 
@@ -155,9 +154,16 @@ impl WsClient {
     }
 }
 
-fn new_rpc_request(params: Params) -> Request {
+pub fn new_rpc_request(params: Params) -> Request {
+    let id = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+
+    let id = id * 1000 + rand::thread_rng().gen_range(100, 1000);
+
     Request {
-        id: thread_rng().gen::<u64>().into(),
+        id: id.into(),
         jsonrpc: "2.0".into(),
         params,
     }

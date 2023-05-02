@@ -17,7 +17,7 @@ use {
     },
     data_encoding::BASE64_NOPAD,
     mongodb::bson::doc,
-    rand::{distributions::Uniform, prelude::Distribution},
+    rand::{distributions::Uniform, prelude::Distribution, Rng},
     rand_core::OsRng,
     std::{sync::Arc, time::SystemTime},
     walletconnect_sdk::rpc::rpc::{
@@ -123,6 +123,7 @@ pub async fn handle(
     let id = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_millis() as u64;
+    let id = id * 1000 + rng.gen_range(0, 1000);
 
     client
         .send_raw(Payload::Request(Request {

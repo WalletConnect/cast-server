@@ -6,7 +6,7 @@ use {
         state::AppState,
         types::{Envelope, EnvelopeType0, EnvelopeType1, RegisterBody},
         websocket_service::{derive_key, NotifyResponse},
-        wsclient::WsClient,
+        wsclient::{new_rpc_request, WsClient},
         Result,
     },
     base64::Engine,
@@ -21,15 +21,8 @@ use {
     rand::{distributions::Uniform, prelude::Distribution},
     rand_core::OsRng,
     serde_json::{json, Value},
-    std::{sync::Arc, time::SystemTime},
-    walletconnect_sdk::rpc::rpc::{
-        Params,
-        Payload,
-        Publish,
-        Request,
-        Subscription,
-        SubscriptionData,
-    },
+    std::sync::Arc,
+    walletconnect_sdk::rpc::rpc::{Params, Payload, Publish, Subscription, SubscriptionData},
     x25519_dalek::{PublicKey, StaticSecret},
 };
 
@@ -74,12 +67,11 @@ pub async fn handle(
         .map_err(|_| crate::error::Error::EncryptionError("Failed to encrypt".into()))?;
     let msg: serde_json::Value = serde_json::from_slice(&msg)?;
     info!("msg: {:?}", &msg);
-    let id: &Value = msg.get("id").ok_or(crate::error::Error::JsonGetError)?;
-
-    // .as_str()
-    // .unwrap()
-    // .parse()
-    // .unwrap();
+    let id = msg
+        .get("id")
+        .ok_or(crate::error::Error::JsonGetError)?
+        .as_u64()
+        .unwrap();
 
     let sub_auth: SubscriptionAuth = {
         let params = msg
@@ -116,7 +108,7 @@ pub async fn handle(
     let public = PublicKey::from(&secret);
 
     let response = NotifyResponse::<Value> {
-        id: id.as_u64().unwrap(),
+        id,
         jsonrpc: "2.0".into(),
         result: json!({"publicKey": hex::encode(public.to_bytes())}),
     };
@@ -141,22 +133,14 @@ pub async fn handle(
     let response_topic = sha256::digest(&*key);
     info!("response_topic: {}", &response_topic);
 
-    let id = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)?
-        .as_millis() as u64;
-    client
-        .send_raw(Payload::Request(Request {
-            id: id.into(),
-            jsonrpc: "2.0".into(),
-            params: Params::Publish(Publish {
-                topic: response_topic.into(),
-                message: base64_notification.into(),
-                ttl_secs: 86400,
-                tag: 4007,
-                prompt: false,
-            }),
-        }))
-        .await?;
+    let request = new_rpc_request(Params::Publish(Publish {
+        topic: response_topic.into(),
+        message: base64_notification.into(),
+        ttl_secs: 86400,
+        tag: 4007,
+        prompt: false,
+    }));
+    client.send_raw(Payload::Request(request)).await?;
 
     let client_data = RegisterBody {
         account: sub_auth.sub.trim_start_matches("did:pkh:").into(),

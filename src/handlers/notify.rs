@@ -5,6 +5,7 @@ use {
         jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification, PublishParams},
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0},
+        wsclient::new_rpc_request,
     },
     axum::{
         extract::{ConnectInfo, Path, State},
