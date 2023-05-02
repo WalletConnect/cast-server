@@ -2,7 +2,7 @@ use {
     crate::{
         error::Result,
         metrics::Metrics,
-        types::{ClientData, LookupEntry, RegisterBody, WebhookInfo},
+        types::{ClientData, LookupEntry, WebhookInfo},
         websocket_service::WebsocketMessage,
         Configuration,
     },
@@ -53,14 +53,14 @@ impl AppState {
     pub async fn register_client(
         &self,
         project_id: &String,
-        client_data: &RegisterBody,
+        client_data: &ClientData,
         url: &Url,
     ) -> Result<()> {
         let key = hex::decode(client_data.sym_key.clone())?;
         let topic = sha256::digest(&*key);
 
         let insert_data = ClientData {
-            id: client_data.account.clone(),
+            id: client_data.id.clone(),
             relay_url: url.to_string().trim_end_matches('/').to_string(),
             sym_key: client_data.sym_key.clone(),
             scope: client_data.scope.clone(),
@@ -70,7 +70,7 @@ impl AppState {
         self.database
             .collection::<ClientData>(&project_id)
             .replace_one(
-                doc! { "_id": client_data.account.clone()},
+                doc! { "_id": client_data.id.clone()},
                 insert_data,
                 ReplaceOptions::builder().upsert(true).build(),
             )
@@ -84,7 +84,7 @@ impl AppState {
                 LookupEntry {
                     topic: topic.clone(),
                     project_id: project_id.clone(),
-                    account: client_data.account.clone(),
+                    account: client_data.id.clone(),
                 },
                 ReplaceOptions::builder().upsert(true).build(),
             )
@@ -98,7 +98,7 @@ impl AppState {
         self.notify_webhook(
             project_id,
             WebhookNotificationEvent::Subscribed,
-            &client_data.account,
+            &client_data.id,
         )
         .await?;
 

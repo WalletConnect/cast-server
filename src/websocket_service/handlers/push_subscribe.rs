@@ -4,7 +4,7 @@ use {
         handlers::subscribe_topic::ProjectData,
         log::info,
         state::AppState,
-        types::{Envelope, EnvelopeType0, EnvelopeType1, RegisterBody},
+        types::{ClientData, Envelope, EnvelopeType0, EnvelopeType1},
         websocket_service::{derive_key, NotifyResponse},
         wsclient::{new_rpc_request, WsClient},
         Result,
@@ -142,8 +142,8 @@ pub async fn handle(
     }));
     client.send_raw(Payload::Request(request)).await?;
 
-    let client_data = RegisterBody {
-        account: sub_auth.sub.trim_start_matches("did:pkh:").into(),
+    let client_data = ClientData {
+        id: sub_auth.sub.trim_start_matches("did:pkh:").into(),
         relay_url: state.config.relay_url.clone(),
         sym_key: push_key.clone(),
         scope: sub_auth.scp.split(" ").map(|s| s.into()).collect(),

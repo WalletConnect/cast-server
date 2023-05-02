@@ -31,7 +31,12 @@ pub struct Notification {
     pub icon: String,
     pub url: String,
     #[serde(rename = "type")]
+    #[serde(default = "default_notification_type")]
     pub notification_type: String,
+}
+
+fn default_notification_type() -> String {
+    "v1".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize)]

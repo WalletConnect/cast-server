@@ -3,7 +3,7 @@ use {
         auth::SubscriptionAuth,
         log::info,
         state::AppState,
-        types::{ClientData, Envelope, EnvelopeType0, LookupEntry, RegisterBody},
+        types::{ClientData, Envelope, EnvelopeType0, LookupEntry},
         websocket_service::{NotifyMessage, NotifyResponse, NotifySubscribe},
         wsclient::WsClient,
         Result,
@@ -139,8 +139,8 @@ pub async fn handle(
         }))
         .await?;
 
-    let client_data = RegisterBody {
-        account: sub_auth.sub.trim_start_matches("did:pkh:").into(),
+    let client_data = ClientData {
+        id: sub_auth.sub.trim_start_matches("did:pkh:").into(),
         relay_url: state.config.relay_url.clone(),
         sym_key: client_data.sym_key.clone(),
         scope: sub_auth.scp.split(" ").map(|s| s.into()).collect(),

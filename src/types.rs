@@ -19,7 +19,7 @@ pub struct RegisterBody {
     #[serde(default = "default_relay_url")]
     pub relay_url: String,
     pub sym_key: String,
-    pub scope: HashSet<String>,
+    pub subscription_auth: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,8 +28,14 @@ pub struct ClientData {
     pub id: String,
     pub relay_url: String,
     pub sym_key: String,
-    #[serde(default)]
+    #[serde(default = "default_scope")]
     pub scope: HashSet<String>,
+}
+
+fn default_scope() -> HashSet<String> {
+    let mut scope = HashSet::new();
+    scope.insert("v1".into());
+    scope
 }
 
 #[derive(Debug, Serialize, Deserialize)]

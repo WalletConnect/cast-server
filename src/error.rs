@@ -1,5 +1,6 @@
 use {
     axum::response::IntoResponse,
+    data_encoding::DecodeError,
     hyper::StatusCode,
     std::string::FromUtf8Error,
     tracing::{error, warn},
@@ -65,6 +66,9 @@ pub enum Error {
 
     #[error("Tried to interact with channel that's already closed")]
     ChannelClosed,
+
+    #[error(transparent)]
+    DecodeError(#[from] DecodeError),
 
     #[error("Missing {0}")]
     SubscriptionAuthError(String),

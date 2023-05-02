@@ -135,7 +135,7 @@ fn urls(env: String) -> (String, String) {
 //         if let Params::Subscription(params) = request.params {
 //             assert_eq!(params.data.topic, topic.into());
 //             let mut cipher =
-//                 
+//
 // chacha20poly1305::ChaCha20Poly1305::new(GenericArray::from_slice(&key));
 //             let encrypted_text = base64::engine::general_purpose::STANDARD
 //                 .decode(&*params.data.message)
@@ -147,7 +147,7 @@ fn urls(env: String) -> (String, String) {
 
 //             let push_message: JsonRpcPayload =
 // serde_json::from_slice(&decrypted).unwrap();             if let
-// JsonRpcParams::Push(notification) = push_message.params {                 
+// JsonRpcParams::Push(notification) = push_message.params {
 // assert_eq!(notification, test_notification);             } else {
 //                 panic!("Notification received not matching notification
 // sent")             }
@@ -297,7 +297,7 @@ fn create_envelope() {
     let secret = StaticSecret::from(seed);
     let public = PublicKey::from(&secret);
 
-    let proj_pub_key = "d5b787c8b6c19a9da1f2f1d745fa2020ce29ba0554e46e622b00a6f7bc051c6d";
+    let proj_pub_key = "1dfac48297bfd21e11f52c3c7c4b676cecb5233e47b8558503c462012eed355d";
     let sym_key = derive_key(proj_pub_key.to_string(), hex::encode(secret));
     dbg!(&sym_key);
     let encryption_key = hex::decode(sym_key).unwrap();
@@ -335,7 +335,7 @@ fn create_envelope() {
     let base64_claims = base64::engine::general_purpose::STANDARD_NO_PAD.encode(claims.as_bytes());
 
     let auth = format!("test.{base64_claims}.test");
-    let request = json!({"id": "1", "jsonrpc": "2.0", "params": json!({"subscriptionAuth": auth})});
+    let request = json!({"id": 1, "jsonrpc": "2.0", "params": json!({"subscriptionAuth": auth})});
 
     let message = serde_json::to_string(&request).unwrap();
     dbg!(&message);

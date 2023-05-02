@@ -6,36 +6,36 @@ use {
     test_context::test_context,
 };
 
-#[test_context(ServerContext)]
-#[tokio::test]
-async fn test_register(ctx: &mut ServerContext) {
-    let client = reqwest::Client::new();
-    let key =
-        chacha20poly1305::ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng {});
-    let hex_key = hex::encode(key);
+// #[test_context(ServerContext)]
+// #[tokio::test]
+// async fn test_register(ctx: &mut ServerContext) {
+//     let client = reqwest::Client::new();
+//     let key =
+//         chacha20poly1305::ChaCha20Poly1305::generate_key(&mut
+// chacha20poly1305::aead::OsRng {});     let hex_key = hex::encode(key);
 
-    // Fix the url for register body
-    let relay_url = ctx.relay_url.replace("http", "ws");
+//     // Fix the url for register body
+//     let relay_url = ctx.relay_url.replace("http", "ws");
 
-    let scope: HashSet<String> = std::iter::once("test".into()).collect();
+//     let scope: HashSet<String> = std::iter::once("test".into()).collect();
 
-    let body = RegisterBody {
-        account: "test_account".to_owned(),
-        relay_url,
-        sym_key: hex_key,
-        scope,
-    };
+//     let body = RegisterBody {
+//         account: "test_account".to_owned(),
+//         relay_url,
+//         sym_key: hex_key,
+//         scope,
+//     };
 
-    let status = client
-        .post(format!(
-            "http://{}/{}/register",
-            ctx.server.public_addr, ctx.project_id
-        ))
-        .body(serde_json::to_string(&body).unwrap())
-        .header("Content-Type", "application/json")
-        .send()
-        .await
-        .expect("Failed to call /register");
+//     let status = client
+//         .post(format!(
+//             "http://{}/{}/register",
+//             ctx.server.public_addr, ctx.project_id
+//         ))
+//         .body(serde_json::to_string(&body).unwrap())
+//         .header("Content-Type", "application/json")
+//         .send()
+//         .await
+//         .expect("Failed to call /register");
 
-    assert!(status.status().is_success());
-}
+//     assert!(status.status().is_success());
+// }

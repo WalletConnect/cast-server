@@ -35,7 +35,17 @@ pub struct SubscriptionAuth {
     // (did:pkh)
     pub sub: String,
     // act - description of action intent. Must be equal to "push_subscription"
+    #[serde(default = "default_act")]
     pub act: String,
     // scp - scope of notification types authorized by the user
+    #[serde(default = "default_scope")]
     pub scp: String,
+}
+
+fn default_scope() -> String {
+    "v1".to_string()
+}
+
+fn default_act() -> String {
+    "push_subscription".to_string()
 }
