@@ -3,7 +3,7 @@ use {
         config::Configuration,
         log::info,
         state::AppState,
-        unregister_service::UnregisterService,
+        websocket_service::WebsocketService,
     },
     axum::{
         http,
@@ -34,7 +34,7 @@ pub mod log;
 mod metrics;
 mod state;
 pub mod types;
-mod unregister_service;
+mod websocket_service;
 pub mod wsclient;
 
 build_info::build_info!(fn build_info);
@@ -147,7 +147,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
 
     // Start the unregister service
     info!("Starting unregister service");
-    let mut unregister_service = UnregisterService::new(state_arc, unregister_rx).await?;
+    let mut websocket_service = WebsocketService::new(state_arc, unregister_rx).await?;
 
     select! {
         // TODO: change bind to try_bind, handleable errrors
@@ -155,7 +155,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
         _ = axum::Server::bind(&private_addr).serve(private_app.into_make_service()) => info!("Terminating metrics service"),
         _ = axum::Server::bind(&addr).serve(app.into_make_service_with_connect_info::<SocketAddr>()) => info!("Server terminating"),
         _ = shutdown.recv() => info!("Shutdown signal received, killing servers"),
-        _ = unregister_service.run() => info!("Unregister service terminating"),
+        _ = websocket_service.run() => info!("Unregister service terminating"),
     }
 
     Ok(())

@@ -54,7 +54,6 @@ impl WsClient {
     }
 
     pub async fn send_ack(&mut self, id: walletconnect_sdk::rpc::domain::MessageId) -> Result<()> {
-        dbg!("Sending ACK for id: {:?}", id);
         self.send_raw(Payload::Response(
             walletconnect_sdk::rpc::rpc::Response::Success(SuccessfulResponse::new(
                 id,

@@ -1,3 +1,5 @@
+use crate::websocket_service;
+
 use {
     crate::{error, state::AppState},
     axum::{
@@ -70,7 +72,7 @@ pub async fn handler(
             info!("Subscribing to project topic: {}", &topic);
             state
                 .unregister_tx
-                .send(crate::unregister_service::UnregisterMessage::Register(
+                .send(websocket_service::WebsocketMessage::Register(
                     topic.to_string(),
                 ))
                 .await

@@ -3,7 +3,7 @@ use {
         error::Result,
         metrics::Metrics,
         types::{ClientData, LookupEntry, RegisterBody, WebhookInfo},
-        unregister_service::UnregisterMessage,
+        websocket_service::WebsocketMessage,
         Configuration,
     },
     build_info::BuildInfo,
@@ -23,7 +23,7 @@ pub struct AppState {
     pub database: Arc<mongodb::Database>,
     pub keypair: Keypair,
     pub unregister_keypair: Keypair,
-    pub unregister_tx: tokio::sync::mpsc::Sender<UnregisterMessage>,
+    pub unregister_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
 }
 
 build_info::build_info!(fn build_info);
@@ -34,7 +34,7 @@ impl AppState {
         database: Arc<mongodb::Database>,
         keypair: Keypair,
         unregister_keypair: Keypair,
-        unregister_tx: tokio::sync::mpsc::Sender<UnregisterMessage>,
+        unregister_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 
@@ -91,7 +91,7 @@ impl AppState {
             .await?;
 
         self.unregister_tx
-            .send(UnregisterMessage::Register(topic))
+            .send(WebsocketMessage::Register(topic))
             .await
             .unwrap();
 
