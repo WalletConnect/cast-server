@@ -9,7 +9,6 @@ use {
         http::StatusCode,
         response::IntoResponse,
     },
-    data_encoding::BASE64_NOPAD,
     opentelemetry::{Context, KeyValue},
     std::sync::Arc,
 };
@@ -28,15 +27,7 @@ pub async fn handler(
             .into_response());
     }
 
-    let sub_auth: SubscriptionAuth = {
-        let jwt = data.subscription_auth;
-
-        let claims = jwt.split(".").collect::<Vec<&str>>()[1];
-
-        let claims = BASE64_NOPAD.decode(claims.as_bytes())?;
-
-        serde_json::from_slice(&claims)?
-    };
+    let sub_auth = SubscriptionAuth::from_jwt(&data.subscription_auth)?;
 
     let register_data = ClientData {
         id: data.account.into(),

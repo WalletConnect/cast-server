@@ -72,7 +72,7 @@ futures = "0.3.26"
 async-tungstenite = {version = "0.20.0", features = ["tokio", "tokio-native-tls"]}
 dashmap = "5.4.0"
 
-walletconnect_sdk = { git = "https://github.com/WalletConnect/WalletConnectRust.git", features= ["rpc"],  rev  = "ced99e7"}
+walletconnect_sdk = { git = "https://github.com/WalletConnect/WalletConnectRust.git", features= ["rpc"], rev = "1fb0f78f28f69b3f3d4f20330f90c8d877185874"}
 x25519-dalek = { version = "2.0.0-rc.2" , features = ["static_secrets"]}
 hkdf = "0.12.3"
 sha2 = "0.10.6"

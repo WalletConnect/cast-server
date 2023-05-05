@@ -1,9 +1,11 @@
 use {
+    crate::auth,
     axum::response::IntoResponse,
     data_encoding::DecodeError,
     hyper::StatusCode,
     std::string::FromUtf8Error,
     tracing::{error, warn},
+    walletconnect_sdk::rpc::domain::ClientIdDecodingError,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -99,6 +101,15 @@ pub enum Error {
 
     #[error("BatchCollector Error: {0}")]
     BatchCollector(String),
+
+    #[error(transparent)]
+    JwtVerificationError(#[from] auth::AuthError),
+
+    #[error(transparent)]
+    ClientIdDecodingError(#[from] ClientIdDecodingError),
+
+    #[error(transparent)]
+    ChronoParse(#[from] chrono::ParseError),
 }
 
 impl IntoResponse for Error {

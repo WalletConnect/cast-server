@@ -1,7 +1,5 @@
-use crate::websocket_service;
-
 use {
-    crate::{error, state::AppState},
+    crate::{error, state::AppState, websocket_service},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
