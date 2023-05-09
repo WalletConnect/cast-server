@@ -27,7 +27,7 @@ use {
     walletconnect_sdk::rpc::{
         auth::ed25519_dalek::Keypair,
         domain::{ClientId, DecodedClientId},
-        rpc::{Params, Payload, Publish, Request},
+        rpc::{Params, Payload, Publish, Request, Subscribe, Subscription},
     },
     x25519_dalek::{PublicKey, StaticSecret},
 };
@@ -80,11 +80,8 @@ PROJECT_ID to be set",
         .unwrap();
     let project_secret = uuid::Uuid::new_v4().to_string();
 
-    //  TODO new bearer token
-    let url = format!("{}/{}/subscribe-topic", &cast_url, &project_id);
-    dbg!(&url);
     let dapp_pubkey_response: serde_json::Value = http_client
-        .get(url)
+        .get(format!("{}/{}/subscribe-topic", &cast_url, &project_id))
         .bearer_auth(project_secret)
         .send()
         .await
@@ -170,7 +167,60 @@ PROJECT_ID to be set",
         ws_client.recv().await.unwrap()
     };
     dbg!(&resp);
+    if let crate::Payload::Request(Request {
+        params: Params::Subscription(Subscription { data, .. }),
+        id,
+        ..
+    }) = resp
+    {
+        ws_client.send_ack(id).await.unwrap();
 
+        let EnvelopeType0 { sealbox, iv, .. } = EnvelopeType0::from_bytes(
+            base64::engine::general_purpose::STANDARD
+                .decode(data.message.as_bytes())
+                .unwrap(),
+        );
+
+        let decrypted_response = cipher
+            .decrypt(&iv.into(), chacha20poly1305::aead::Payload::from(&*sealbox))
+            .unwrap();
+
+        let response: serde_json::Value = serde_json::from_slice(&decrypted_response).unwrap();
+
+        let pubkey = response
+            .get("result")
+            .unwrap()
+            .get("publicKey")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        let notify_key = derive_key(pubkey.to_string(), hex::encode(secret.to_bytes()));
+        let notify_topic = sha256::digest(&*hex::decode(&notify_key).unwrap());
+
+        ws_client.subscribe(&notify_topic).await.unwrap();
+        ws_client.recv().await.unwrap();
+
+        let dapp_pubkey_response: serde_json::Value = http_client
+            .post(format!("{}/{}/subscribe-topic", &cast_url, &project_id))
+            .bearer_auth(project_secret)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+        if let crate::Payload::Request(Request {
+            params: Params::Subscription(Subscription { data, .. }),
+            ..
+        }) = ws_client.recv().await.unwrap()
+        {
+            dbg!(data.message);
+        }
+    } else {
+        panic!("wrong response")
+    }
     //     // Prepare client key
     //     let key =
     //         chacha20poly1305::ChaCha20Poly1305::generate_key(&mut
