@@ -1,5 +1,5 @@
 use {
-    crate::{context::ServerContext, handler::encode_subscription_auth},
+    crate::context::{encode_subscription_auth, ServerContext},
     cast_server::{
         auth::SubscriptionAuth,
         handlers::notify::NotifyBody,

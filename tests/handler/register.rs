@@ -1,6 +1,5 @@
 use {
-    super::encode_subscription_auth,
-    crate::context::ServerContext,
+    crate::context::{encode_subscription_auth, ServerContext},
     cast_server::{auth::SubscriptionAuth, types::RegisterBody},
     chacha20poly1305::KeyInit,
     chrono::Utc,

@@ -1,25 +1,32 @@
 use {
+    crate::context::encode_subscription_auth,
     base64::Engine,
     cast_server::{
         auth::{jwt_token, SubscriptionAuth},
         handlers::notify::NotifyBody,
-        jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification},
+        jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification, PublishParams},
         types::{Envelope, EnvelopeType0, EnvelopeType1, RegisterBody},
-        wsclient,
+        wsclient::{self, new_rpc_request},
     },
     chacha20poly1305::{
         aead::{generic_array::GenericArray, AeadMut, OsRng},
         consts::U12,
+        ChaCha20Poly1305,
         KeyInit,
     },
+    chrono::Utc,
     parquet::data_type::AsBytes,
-    rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng},
+    rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, Rng, SeedableRng},
     serde_json::json,
     sha2::Sha256,
-    std::{collections::HashSet, time::Duration},
+    std::{
+        collections::HashSet,
+        time::{Duration, SystemTime},
+    },
     tokio::time::sleep,
     walletconnect_sdk::rpc::{
         auth::ed25519_dalek::Keypair,
+        domain::{ClientId, DecodedClientId},
         rpc::{Params, Payload, Publish, Request},
     },
     x25519_dalek::{PublicKey, StaticSecret},
@@ -45,125 +52,231 @@ fn urls(env: String) -> (String, String) {
     }
 }
 
-// #[tokio::test]
-// async fn cast_properly_sending_message() {
-//     let env = std::env::var("ENVIRONMENT").unwrap_or("STAGING".to_owned());
-//     let project_id = std::env::var("TEST_PROJECT_ID").expect("Tests requires
-// PROJECT_ID to be set");
+#[tokio::test]
+async fn cast_properly_sending_message() {
+    let env = std::env::var("ENVIRONMENT").unwrap_or("STAGING".to_owned());
+    let project_id = std::env::var("TEST_PROJECT_ID").expect(
+        "Tests requires
+PROJECT_ID to be set",
+    );
 
-//     let (cast_url, relay_url) = urls(env);
+    let (cast_url, relay_url) = urls(env);
 
-//     // Generate valid JWT
-//     let mut rng = StdRng::from_entropy();
-//     let keypair = Keypair::generate(&mut rng);
-//     let jwt = jwt_token(&relay_url, &keypair).unwrap();
+    // Generate valid JWT
+    let mut rng = StdRng::from_entropy();
+    let keypair = Keypair::generate(&mut rng);
+    let jwt = jwt_token(&relay_url, &keypair).unwrap();
 
-//     // Set up clients
-//     let http_client = reqwest::Client::new();
-//     let mut ws_client = wsclient::connect(&relay_url, &project_id, jwt)
-//         .await
-//         .unwrap();
+    let seed: [u8; 32] = rng.gen();
 
-//     // Prepare client key
-//     let key =
-//         chacha20poly1305::ChaCha20Poly1305::generate_key(&mut
-// chacha20poly1305::aead::OsRng {});     let topic = sha256::digest(&*key);
-//     let hex_key = hex::encode(key);
+    // let keypair = Keypair::generate(&mut seeded);
+    let secret = StaticSecret::from(seed);
+    let public = PublicKey::from(&secret);
 
-//     let test_account = "test_account_send_test".to_owned();
+    // Set up clients
+    let http_client = reqwest::Client::new();
+    let mut ws_client = wsclient::connect(&relay_url, &project_id, jwt)
+        .await
+        .unwrap();
+    let project_secret = uuid::Uuid::new_v4().to_string();
 
-//     // Create valid account
-//     let scope: HashSet<String> = std::iter::once("test".into()).collect();
+    //  TODO new bearer token
+    let url = format!("{}/{}/subscribe-topic", &cast_url, &project_id);
+    dbg!(&url);
+    let dapp_pubkey_response: serde_json::Value = http_client
+        .get(url)
+        .bearer_auth(project_secret)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
 
-//     let body = RegisterBody {
-//         account: test_account.clone(),
-//         relay_url,
-//         sym_key: hex_key,
-//         scope,
-//     };
+    let dapp_pubkey = dapp_pubkey_response
+        .get("publicKey")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    dbg!(&dapp_pubkey);
+    dbg!(&hex::encode(keypair.secret_key().to_bytes()));
 
-//     // Register valid account
-//     let status = http_client
-//         .post(format!("{}/{}/register", &cast_url, &project_id))
-//         .body(serde_json::to_string(&body).unwrap())
-//         .header("Content-Type", "application/json")
-//         .send()
-//         .await
-//         .expect("Failed to call /register")
-//         .status();
-//     assert!(status.is_success());
+    let subscribe_topic = sha256::digest(&*hex::decode(dapp_pubkey).unwrap());
 
-//     // Prepare notification
-//     let test_notification = Notification {
-//         title: "test".to_owned(),
-//         body: "test".to_owned(),
-//         icon: "test".to_owned(),
-//         url: "test".to_owned(),
-//         notification_type: "test".to_owned(),
-//     };
+    let decoded_client_id = DecodedClientId(*keypair.public_key().as_bytes());
+    let client_id = ClientId::from(decoded_client_id);
 
-//     // Prepare notify body
-//     let body = NotifyBody {
-//         notification: test_notification.clone(),
-//         accounts: vec![test_account.clone()],
-//     };
+    let subscription_auth = SubscriptionAuth {
+        iat: Utc::now().timestamp() as u64,
+        exp: Utc::now().timestamp() as u64 + 3600,
+        iss: format!("did:key:{}", client_id),
+        ksu: "https://keys.walletconnect.com".to_owned(),
+        sub: "did:pkh:test_account".to_owned(),
+        aud: "https://my-test-app.com".to_owned(),
+        scp: "test test1".to_owned(),
+        act: "push_subscription".to_owned(),
+    };
 
-//     // Subscribe client to topic
-//     ws_client.subscribe(&topic).await.unwrap();
+    let subscription_auth = encode_subscription_auth(&subscription_auth, &keypair);
 
-//     // Receive ack to subscribe
-//     ws_client.recv().await.unwrap();
+    let id = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
 
-//     // Send notify
-//     let response = http_client
-//         .post(format!("{}/{}/notify", &cast_url, &project_id))
-//         .body(serde_json::to_string(&body).unwrap())
-//         .header("Content-Type", "application/json")
-//         .send()
-//         .await
-//         .expect("Failed to call /notify")
-//         .text()
-//         .await
-//         .unwrap();
-//     let response: cast_server::handlers::notify::Response =
-//         serde_json::from_str(&response).unwrap();
+    let id = id * 1000 + rand::thread_rng().gen_range(100, 1000);
 
-//     assert_eq!(response.sent.into_iter().next().unwrap(), test_account);
+    let sub_auth = json!({ "subscriptionAuth": subscription_auth });
+    let message = json!({"id": id,  "jsonrpc": "2.0", "params": sub_auth});
 
-//     // Recv the response
-//     if let Payload::Request(request) = ws_client.recv().await.unwrap() {
-//         if let Params::Subscription(params) = request.params {
-//             assert_eq!(params.data.topic, topic.into());
-//             let mut cipher =
-//
-// chacha20poly1305::ChaCha20Poly1305::new(GenericArray::from_slice(&key));
-//             let encrypted_text = base64::engine::general_purpose::STANDARD
-//                 .decode(&*params.data.message)
-//                 .unwrap();
-//             let envelope = EnvelopeType0::from_bytes(encrypted_text);
-//             let decrypted = cipher
-//                 .decrypt(&envelope.iv.into(), &*envelope.sealbox)
-//                 .unwrap();
+    let mut rng = rand_core::OsRng {};
 
-//             let push_message: JsonRpcPayload =
-// serde_json::from_slice(&decrypted).unwrap();             if let
-// JsonRpcParams::Push(notification) = push_message.params {
-// assert_eq!(notification, test_notification);             } else {
-//                 panic!("Notification received not matching notification
-// sent")             }
-//         } else {
-//             panic!("Wrong payload body received");
-//         }
-//     } else {
-//         panic!("Invalid data received");
-//     }
-// }
+    dbg!(&subscribe_topic);
+    let response_topic_key = derive_key(dapp_pubkey.to_string(), hex::encode(secret.to_bytes()));
+    dbg!(&response_topic_key);
+
+    let mut cipher = ChaCha20Poly1305::new(GenericArray::from_slice(
+        &hex::decode(response_topic_key.clone()).unwrap(),
+    ));
+    let uniform = Uniform::from(0u8..=255);
+    let nonce: GenericArray<u8, U12> =
+        GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
+
+    let encrypted = cipher
+        .encrypt(&nonce, message.to_string().as_bytes())
+        .unwrap();
+    dbg!(hex::encode(public.as_bytes()));
+
+    let envelope = EnvelopeType1 {
+        envelope_type: 1,
+        pubkey: public.to_bytes(),
+        iv: nonce.into(),
+        sealbox: encrypted,
+    };
+    let message = base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
+
+    let response_topic = sha256::digest(&*hex::decode(response_topic_key.clone()).unwrap());
+    dbg!(&response_topic);
+
+    ws_client
+        .publish_with_tag(&subscribe_topic, &message, 4006)
+        .await
+        .unwrap();
+
+    ws_client.subscribe(&response_topic).await.unwrap();
+    let resp = {
+        ws_client.recv().await.unwrap();
+        ws_client.recv().await.unwrap();
+        ws_client.recv().await.unwrap()
+    };
+    dbg!(&resp);
+
+    //     // Prepare client key
+    //     let key =
+    //         chacha20poly1305::ChaCha20Poly1305::generate_key(&mut
+    // chacha20poly1305::aead::OsRng {});     let topic =
+    // sha256::digest(&*key);     let hex_key = hex::encode(key);
+
+    //     let test_account = "test_account_send_test".to_owned();
+
+    //     // Create valid account
+    //     let scope: HashSet<String> =
+    // std::iter::once("test".into()).collect();
+
+    //     let body = RegisterBody {
+    //         account: test_account.clone(),
+    //         relay_url,
+    //         sym_key: hex_key,
+    //         scope,
+    //     };
+
+    //     // Register valid account
+    //     let status = http_client
+    //         .post(format!("{}/{}/register", &cast_url, &project_id))
+    //         .body(serde_json::to_string(&body).unwrap())
+    //         .header("Content-Type", "application/json")
+    //         .send()
+    //         .await
+    //         .expect("Failed to call /register")
+    //         .status();
+    //     assert!(status.is_success());
+
+    //     // Prepare notification
+    //     let test_notification = Notification {
+    //         title: "test".to_owned(),
+    //         body: "test".to_owned(),
+    //         icon: "test".to_owned(),
+    //         url: "test".to_owned(),
+    //         notification_type: "test".to_owned(),
+    //     };
+
+    //     // Prepare notify body
+    //     let body = NotifyBody {
+    //         notification: test_notification.clone(),
+    //         accounts: vec![test_account.clone()],
+    //     };
+
+    //     // Subscribe client to topic
+    //     ws_client.subscribe(&topic).await.unwrap();
+
+    //     // Receive ack to subscribe
+    //     ws_client.recv().await.unwrap();
+
+    //     // Send notify
+    //     let response = http_client
+    //         .post(format!("{}/{}/notify", &cast_url, &project_id))
+    //         .body(serde_json::to_string(&body).unwrap())
+    //         .header("Content-Type", "application/json")
+    //         .send()
+    //         .await
+    //         .expect("Failed to call /notify")
+    //         .text()
+    //         .await
+    //         .unwrap();
+    //     let response: cast_server::handlers::notify::Response =
+    //         serde_json::from_str(&response).unwrap();
+
+    //     assert_eq!(response.sent.into_iter().next().unwrap(), test_account);
+
+    //     // Recv the response
+    //     if let Payload::Request(request) = ws_client.recv().await.unwrap() {
+    //         if let Params::Subscription(params) = request.params {
+    //             assert_eq!(params.data.topic, topic.into());
+    //             let mut cipher =
+    //
+    // chacha20poly1305::ChaCha20Poly1305::new(GenericArray::from_slice(&key));
+    //             let encrypted_text =
+    // base64::engine::general_purpose::STANDARD
+    // .decode(&*params.data.message)                 .unwrap();
+    //             let envelope = EnvelopeType0::from_bytes(encrypted_text);
+    //             let decrypted = cipher
+    //                 .decrypt(&envelope.iv.into(), &*envelope.sealbox)
+    //                 .unwrap();
+
+    //             let push_message: JsonRpcPayload =
+    // serde_json::from_slice(&decrypted).unwrap();             if let
+    // JsonRpcParams::Push(notification) = push_message.params {
+    // assert_eq!(notification, test_notification);             } else {
+    //                 panic!(
+    //                     "Notification received not matching notification
+    // sent"
+    //                 )
+    //             }
+    //         } else {
+    //             panic!("Wrong payload body received");
+    //         }
+    //     } else {
+    //         panic!("Invalid data received");
+    //     }
+}
 
 // #[tokio::test]
 // async fn test_unregister() {
 //     let env = std::env::var("ENVIRONMENT").unwrap_or("STAGING".to_owned());
-//     let project_id = std::env::var("PROJECT_ID").expect("Tests requires
-// PROJECT_ID to be set");
+//     let project_id = std::env::var("PROJECT_ID").expect(
+//         "Tests requires
+// PROJECT_ID to be set",
+//     );
 
 //     let (cast_url, relay_url) = urls(env);
 
@@ -401,6 +514,21 @@ fn test_derive() {
 
     dbg!(shared1);
     dbg!(shared2);
+}
+
+#[test]
+fn test_derive2() {
+    let a = "740139c6c7f6555088670c7893e959ce4fa4b19591cd31b0ef463f8c54664a50";
+    let b = "c7ebe3fce8f3923c6880a81da770b4e6d52bd161a2967f6d14bf431c08284ce8";
+    let res = "c7be6a1fbefd91eb14009370411892306aa7898759051cf3b5c882820ab05b4e";
+
+    let aa = "540322ceae8bf597dc716158a2353c9d2a9137411cd02c288e0d95885faee9c6";
+    let bb = "4065617265722064303430326361312d623439312d343733642d623562352d73";
+    let resres = "6b5ab3a5654b0d08cd4dd15aa6612e2c60a352ddcf276a05719b2e9c8bf4d5c3";
+
+    let shared2 = derive_key(aa.to_string(), bb.to_string());
+    let shared1 = derive_key(a.to_string(), b.to_string());
+    dbg!(res, shared1, resres);
 }
 
 fn derive_key(pubkey: String, privkey: String) -> String {
