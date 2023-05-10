@@ -53,8 +53,6 @@ pub async fn handle(
 
     info!("pubkey: {}", hex::encode(&envelope.pubkey));
 
-    // TODO: remove that
-    info!("privkey {}", &project_data.private_key);
     let response_sym_key = derive_key(hex::encode(client_pubkey), project_data.private_key)?;
     info!("response_sym_key: {}", &response_sym_key);
 

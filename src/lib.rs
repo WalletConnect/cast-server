@@ -145,13 +145,11 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
         .route("/metrics", get(handlers::metrics::handler))
         .with_state(state_arc.clone());
 
-    // Start the unregister service
-    info!("Starting unregister service");
+    // Start the websocket service
+    info!("Starting websocket service");
     let mut websocket_service = WebsocketService::new(state_arc, unregister_rx).await?;
 
     select! {
-        // TODO: change bind to try_bind, handleable errrors
-        // If possible to retrieve port from `from_tcp` we may be able to finally get rid of flaky tests )
         _ = axum::Server::bind(&private_addr).serve(private_app.into_make_service()) => info!("Terminating metrics service"),
         _ = axum::Server::bind(&addr).serve(app.into_make_service_with_connect_info::<SocketAddr>()) => info!("Server terminating"),
         _ = shutdown.recv() => info!("Shutdown signal received, killing servers"),

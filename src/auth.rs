@@ -1,12 +1,11 @@
-use chrono::{Utc,  DateTime};
-use walletconnect_sdk::rpc::auth::cacao::Cacao;
-
 use {
     crate::error::Result,
     base64::Engine,
+    chrono::{DateTime, Utc},
     serde::{Deserialize, Serialize},
     walletconnect_sdk::rpc::{
         auth::{
+            cacao::Cacao,
             ed25519_dalek::Keypair,
             AuthToken,
             DID_DELIMITER,
@@ -78,7 +77,6 @@ impl SubscriptionAuth {
         let claims = base64::engine::general_purpose::STANDARD_NO_PAD.decode(claims)?;
         let claims = serde_json::from_slice::<SubscriptionAuth>(&claims)?;
 
-
         if claims.exp < Utc::now().timestamp() as u64 {
             return Err(AuthError::Expired)?;
         }
@@ -93,7 +91,7 @@ impl SubscriptionAuth {
 
         let mut parts = jwt.rsplitn(2, ".");
 
-        let (Some(signature), Some(message)) = (parts.next(), parts.next()) else { 
+        let (Some(signature), Some(message)) = (parts.next(), parts.next()) else {
             return Err(AuthError::Format)?;
         };
 
@@ -170,17 +168,6 @@ pub enum AuthError {
 
     #[error("Invalid act")]
     InvalidAct,
-   
-}
-
-#[tokio::test]
-async fn test() {
-    let jwt =
-"eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkaWQ6a2V5Ono2TWtlWnhMV2lDQmtqODFDcDVqcVlIS28yMm84YUQ5RHZDc0dSRWg3b3lCQXV2ZyIsInN1YiI6ImRpZDpwa2g6ZWlwMTU1OjE6MHhmNGY4OWI1Y2I5MzEwOWY1YWM4ZGQyZTFkZjYxYWQ2MTgwYTA0ZGMyIiwiYXVkIjoiaHR0cHM6Ly9nbS53YWxsZXRjb25uZWN0LmNvbSIsImlhdCI6MTY4MzA0Njk1NDkyMiwiZXhwIjoxNjg1NjM4OTU0OTIyLCJrc3UiOiJodHRwczovL2tleXMud2FsbGV0Y29ubmVjdC5jb20ifQ.-DKfJ_GXt1nT_9ksRJCNx3P1mxO7Ey99QTJi7Cok38OBrTYjWppPF8oRZHUMeqxylnWyWghm7SIj0120hvooAw";
-
-    let auth = SubscriptionAuth::from_jwt(jwt).unwrap();
-
-    let verified = verify_identity(&auth.iss.strip_prefix("did:key:").unwrap(), &auth.ksu, &auth.sub).await;
 }
 
 pub async fn verify_identity(pubkey: &str, keyserver: &str, account: &str) -> Result<()> {
@@ -190,25 +177,24 @@ pub async fn verify_identity(pubkey: &str, keyserver: &str, account: &str) -> Re
 
     if cacao.value.is_none() {
         return Err(AuthError::CacaoValidation)?;
-    } 
+    }
 
     let cacao = cacao.value.unwrap().cacao;
 
     if cacao.p.iss != account {
-        return Err(AuthError::CacaoAccountMismatch)?
+        return Err(AuthError::CacaoAccountMismatch)?;
     }
 
     if let Some(exp) = cacao.p.exp {
         let exp = DateTime::parse_from_rfc3339(&exp)?;
 
         if exp.timestamp() < Utc::now().timestamp() {
-            return Err(AuthError::CacaoValidation)?
+            return Err(AuthError::CacaoValidation)?;
         }
     }
 
-   Ok(()) 
+    Ok(())
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct KeyServerResponse {

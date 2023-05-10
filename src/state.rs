@@ -49,7 +49,6 @@ impl AppState {
         })
     }
 
-    // TODO: erroro
     pub async fn register_client(
         &self,
         project_id: &String,
@@ -76,7 +75,6 @@ impl AppState {
             )
             .await?;
 
-        // TODO: Replace with const
         self.database
             .collection::<LookupEntry>("lookup_table")
             .replace_one(

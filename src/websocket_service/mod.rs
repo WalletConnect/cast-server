@@ -119,7 +119,6 @@ impl WebsocketService {
 }
 
 async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<()> {
-    // TODO: Sub to all
     debug!("Resubscribing to all topics");
     // Get all topics from db
     let cursor = database
@@ -168,7 +167,7 @@ async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<
 }
 
 async fn handle_msg(msg: Payload, state: &Arc<AppState>, client: &mut WsClient) -> Result<()> {
-    info!("Unregister service received message: {:?}", msg);
+    info!("Websocket service received message: {:?}", msg);
     if let Payload::Request(req) = msg {
         if let Params::Subscription(params) = req.params {
             match params.data.tag {
@@ -198,7 +197,6 @@ async fn handle_msg(msg: Payload, state: &Arc<AppState>, client: &mut WsClient) 
             info!("Ignored request: {:?}", req);
         }
     }
-    // TODO: This shouldnt be needed
     Ok(())
 }
 
@@ -236,7 +234,6 @@ struct NotifyResponse<T> {
     result: T,
 }
 
-// TODO CHANGE
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct NotifySubscribe {

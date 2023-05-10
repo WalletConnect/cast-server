@@ -26,7 +26,6 @@ use {
 
 type MessageId = String;
 
-// TODO: Implement proper ACK handling
 #[derive(Debug)]
 pub struct WsClient {
     pub project_id: String,
@@ -73,6 +72,7 @@ impl WsClient {
 
     pub async fn send_raw(&mut self, msg: Payload) -> Result<()> {
         let msg = serde_json::to_string(&msg).unwrap();
+        println!("Sending: {}", msg);
         self.tx
             .send(Message::Text(msg))
             .await

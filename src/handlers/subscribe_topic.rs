@@ -33,9 +33,6 @@ pub async fn handler(
 
     match headers.get("Authorization") {
         Some(project_secret) => {
-            // TODO: Check if project_secret is valid
-            // Also strange thing happens when I change the project_secret to a different
-            // value but small difference
             let seed: [u8; 32] = project_secret.as_bytes()[..32]
                 .try_into()
                 .map_err(|_| error::Error::InvalidKeypairSeed)?;
@@ -78,7 +75,7 @@ pub async fn handler(
 
             Ok(Json(json!({ "publicKey": public_key })).into_response())
         }
-        None => Ok(Json( json! ( 
+        None => Ok(Json( json! (
             {
                 "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
             })

@@ -111,6 +111,5 @@ pub async fn handle(
             warn!("Error unregistering from topic {}: {}", &topic, e);
         }
     }
-    // TODO: fix
     Ok(())
 }

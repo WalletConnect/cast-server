@@ -46,7 +46,6 @@ pub struct LookupEntry {
     pub account: String,
 }
 
-// TODO: Load this from env
 fn default_relay_url() -> String {
     env::var("RELAY_URL").unwrap()
 }
