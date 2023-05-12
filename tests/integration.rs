@@ -169,7 +169,7 @@ PROJECT_ID to be set",
             body: "string".to_owned(),
             icon: "string".to_owned(),
             url: "string".to_owned(),
-            notification_type: "test".to_owned(),
+            r#type: "test".to_owned(),
         };
 
         let notify_body = json!({

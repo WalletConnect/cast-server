@@ -177,9 +177,8 @@ pub struct Notification {
     pub body: String,
     pub icon: String,
     pub url: String,
-    #[serde(rename = "type")]
     #[serde(default = "default_notification_type")]
-    pub notification_type: String,
+    pub r#type: String,
 }
 
 fn default_notification_type() -> String {

@@ -68,14 +68,6 @@ pub async fn handle(
 
     let sub_auth = SubscriptionAuth::from_jwt(&msg.params.subscription_auth)?;
 
-    // let mut rng = OsRng {};
-
-    // let cipher =
-    // ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
-    // let uniform = Uniform::from(0u8..=255);
-    // let nonce: GenericArray<u8, U12> =
-    //     GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
-
     let response = NotifyResponse::<bool> {
         id: msg.id,
         jsonrpc: "2.0".into(),

@@ -67,7 +67,7 @@ pub async fn handler(
     let mut cursor = db
         .collection::<ClientData>(&project_id)
         .find(
-            doc! { "_id": {"$in": &accounts}, "scope": { "$elemMatch": { "$eq": &notification.notification_type} }},
+            doc! { "_id": {"$in": &accounts}, "scope": { "$elemMatch": { "$eq": &notification.r#type } }},
             None,
         )
         .await?;

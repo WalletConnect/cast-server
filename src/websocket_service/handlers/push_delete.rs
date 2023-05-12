@@ -41,15 +41,15 @@ pub async fn handle(
         };
 
     let Ok(Some(acc)) = database
-                 .collection::<ClientData>(&project_id)
-                .find_one_and_delete(doc! {"_id": &account }, None)
-                .await else {
-                    return Err(Error::NoClientDataForTopic(topic.to_string()))
-                };
+        .collection::<ClientData>(&project_id)
+        .find_one_and_delete(doc! {"_id": &account }, None)
+        .await else {
+            return Err(Error::NoClientDataForTopic(topic.to_string()))
+        };
 
     let Ok(message_bytes) = base64::engine::general_purpose::STANDARD
         .decode(params.data.message.to_string()) else {
-            Err(anyhow!("Failed to decode message"))?
+            return Err(Error::Other(anyhow!("Failed to decode message")))
         };
 
     let envelope = Envelope::<EnvelopeType0>::from_bytes(message_bytes)?;

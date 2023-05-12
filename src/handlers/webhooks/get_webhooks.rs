@@ -24,22 +24,16 @@ pub async fn handler(
         .find(doc! {"project_id": project_id}, None)
         .await?;
 
-    let webhooks: HashMap<_, _> =
-        cursor
-            .try_collect()
-            .await
-            .map(|webhooks: Vec<WebhookInfo>| {
-                webhooks
-                    .into_iter()
-                    .map(|webhook| {
-                        let webhook_config = WebhookConfig {
-                            url: webhook.url,
-                            events: webhook.events,
-                        };
-                        (webhook.id, webhook_config)
-                    })
-                    .collect()
-            })?;
+    let webhooks: HashMap<_, _> = cursor
+        .into_stream()
+        .map_ok(|webhook| {
+            (webhook.id, WebhookConfig {
+                url: webhook.url,
+                events: webhook.events,
+            })
+        })
+        .try_collect()
+        .await?;
 
     Ok((axum::http::StatusCode::OK, Json(webhooks)))
 }

@@ -112,7 +112,7 @@ async fn test_notify(ctx: &mut ServerContext) {
         body: "test".to_owned(),
         icon: "test".to_owned(),
         url: "test".to_owned(),
-        notification_type: "test".to_owned(),
+        r#type: "test".to_owned(),
     };
 
     // Prepare notify body
