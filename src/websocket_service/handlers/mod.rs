@@ -1,9 +1,6 @@
 use {
     super::NotifyMessage,
-    crate::{
-        error::Error,
-        types::{Envelope, EnvelopeType},
-    },
+    crate::{error::Error, types::Envelope},
     chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit},
     serde::de::DeserializeOwned,
     sha2::digest::generic_array::GenericArray,
@@ -13,7 +10,7 @@ pub mod push_delete;
 pub mod push_subscribe;
 pub mod push_update;
 
-fn decrypt_message<T: DeserializeOwned, E: EnvelopeType>(
+fn decrypt_message<T: DeserializeOwned, E>(
     envelope: Envelope<E>,
     key: &str,
 ) -> crate::error::Result<NotifyMessage<T>> {

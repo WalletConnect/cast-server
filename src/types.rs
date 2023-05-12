@@ -51,7 +51,7 @@ pub struct LookupEntry {
 }
 
 #[derive(Debug)]
-pub struct Envelope<T: EnvelopeType> {
+pub struct Envelope<T> {
     pub envelope_type: u8,
     pub iv: [u8; 12],
     pub sealbox: Vec<u8>,
@@ -141,17 +141,12 @@ impl Envelope<EnvelopeType1> {
     }
 }
 
-pub trait EnvelopeType {}
-
 #[derive(Serialize)]
 pub struct EnvelopeType0 {}
-impl EnvelopeType for EnvelopeType0 {}
 
 pub struct EnvelopeType1 {
     pub pubkey: [u8; 32],
 }
-
-impl EnvelopeType for EnvelopeType1 {}
 
 fn generate_nonce() -> GenericArray<u8, U12> {
     let uniform = Uniform::from(0u8..=255);
