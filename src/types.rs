@@ -61,7 +61,7 @@ pub struct Envelope<T: EnvelopeType> {
 impl Envelope<EnvelopeType0> {
     pub fn new(encryption_key: &str, data: impl Serialize) -> Result<Self> {
         let serialized = serde_json::to_vec(&data)?;
-        let iv = generate_nonce().into();
+        let iv = generate_nonce();
         let encryption_key = hex::decode(encryption_key)?;
 
         let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
@@ -99,7 +99,7 @@ impl Envelope<EnvelopeType0> {
 impl Envelope<EnvelopeType1> {
     pub fn new(encryption_key: &str, data: impl Serialize, pubkey: [u8; 32]) -> Result<Self> {
         let serialized = serde_json::to_vec(&data)?;
-        let iv = generate_nonce().into();
+        let iv = generate_nonce();
         let encryption_key = hex::decode(encryption_key)?;
 
         let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));

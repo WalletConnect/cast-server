@@ -28,7 +28,7 @@ fn decrypt_message<T: DeserializeOwned, E: EnvelopeType>(
         )
         .map_err(|_| crate::error::Error::EncryptionError("Failed to decrypt".into()))?;
 
-    serde_json::from_slice::<NotifyMessage<T>>(&msg).map_err(|e| Error::SerdeJson(e))
+    serde_json::from_slice::<NotifyMessage<T>>(&msg).map_err(Error::SerdeJson)
 }
 
 // fn encrypt_response<T: Serialize>(

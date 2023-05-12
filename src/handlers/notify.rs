@@ -85,7 +85,7 @@ pub async fn handler(
     while let Some(data) = cursor.try_next().await.unwrap() {
         not_found.remove(&data.id);
 
-        let envelope = Envelope::<EnvelopeType0>::new(&data.sym_key, message.clone())?;
+        let envelope = Envelope::<EnvelopeType0>::new(&data.sym_key, message)?;
 
         let base64_notification =
             base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
