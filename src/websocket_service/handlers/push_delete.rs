@@ -1,5 +1,4 @@
 use {
-    anyhow::anyhow,
     crate::{
         error::Error,
         log::{info, warn},
@@ -8,6 +7,7 @@ use {
         wsclient::WsClient,
         Result,
     },
+    anyhow::anyhow,
     base64::Engine,
     chacha20poly1305::{
         aead::{generic_array::GenericArray, Aead},
@@ -29,7 +29,7 @@ pub async fn handle(
     let subscription_id = params.id;
 
     let Ok(Some(LookupEntry {
-        project_id, 
+        project_id,
         account,
         ..
     }))= database

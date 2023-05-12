@@ -77,11 +77,11 @@ impl SubscriptionAuth {
         let claims = base64::engine::general_purpose::STANDARD_NO_PAD.decode(claims)?;
         let claims = serde_json::from_slice::<SubscriptionAuth>(&claims)?;
 
-        if claims.exp < Utc::now().timestamp() as u64 {
+        if claims.exp < Utc::now().timestamp().unsigned_abs() {
             return Err(AuthError::Expired)?;
         }
 
-        if claims.iat > Utc::now().timestamp_millis() as u64 {
+        if claims.iat > Utc::now().timestamp_millis().unsigned_abs() {
             return Err(AuthError::NotYetValid)?;
         }
 
