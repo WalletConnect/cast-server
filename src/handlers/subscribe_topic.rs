@@ -1,5 +1,5 @@
 use {
-    crate::{error, state::AppState, websocket_service},
+    crate::{error::Error, state::AppState, websocket_service},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
@@ -8,6 +8,8 @@ use {
     hyper::HeaderMap,
     log::info,
     mongodb::{bson::doc, options::ReplaceOptions},
+    rand::{rngs::StdRng, Rng},
+    rand_core::SeedableRng,
     serde::{Deserialize, Serialize},
     serde_json::json,
     std::sync::Arc,
@@ -33,17 +35,17 @@ pub async fn handler(
 
     match headers.get("Authorization") {
         Some(project_secret) => {
-            let seed: [u8; 32] = project_secret.as_bytes()[..32]
-                .try_into()
-                .map_err(|_| error::Error::InvalidKeypairSeed)?;
+            let seed = sha256::digest(project_secret.as_bytes());
+            let seed_bytes = hex::decode(seed)?;
 
-            // let keypair = Keypair::generate(&mut seeded);
-            let secret = StaticSecret::from(seed);
+            let mut rng: StdRng = SeedableRng::from_seed(seed_bytes.try_into().unwrap());
+
+            let secret = StaticSecret::from(rng.gen::<[u8; 32]>());
             let public = PublicKey::from(&secret);
 
-            let public_key = hex::encode(public.to_bytes());
+            let public_key = hex::encode(public.as_bytes());
 
-            let topic = sha256::digest(&public.to_bytes());
+            let topic = sha256::digest(public.as_bytes());
             let project_data = ProjectData {
                 id: project_id.clone(),
                 private_key: hex::encode(secret.to_bytes()),
@@ -66,20 +68,17 @@ pub async fn handler(
 
             info!("Subscribing to project topic: {}", &topic);
             state
-                .unregister_tx
+                .webclient_tx
                 .send(websocket_service::WebsocketMessage::Register(
                     topic.to_string(),
                 ))
-                .await
-                .unwrap();
+                .await.map_err(|_| Error::ChannelClosed)?;
 
             Ok(Json(json!({ "publicKey": public_key })).into_response())
         }
-        None => Ok(Json( json! (
-            {
+        None => Ok(Json(json!({
                 "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
-            })
-        )
+            }))
         .into_response()),
     }
 }

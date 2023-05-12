@@ -3,7 +3,7 @@ use {
     dashmap::DashMap,
     futures::{future, StreamExt},
     rand::Rng,
-    std::{sync::Arc, time::SystemTime},
+    std::sync::Arc,
     tokio::{select, sync::mpsc},
     tokio_stream::wrappers::ReceiverStream,
     tracing::{info, warn},
@@ -61,8 +61,6 @@ impl WsClient {
         .await
     }
 
-    // TODO: Fix
-
     pub async fn send_plaintext(&mut self, msg: String) -> Result<()> {
         self.tx
             .send(Message::Text(msg))
@@ -72,7 +70,6 @@ impl WsClient {
 
     pub async fn send_raw(&mut self, msg: Payload) -> Result<()> {
         let msg = serde_json::to_string(&msg).unwrap();
-        println!("Sending: {}", msg);
         self.tx
             .send(Message::Text(msg))
             .await
@@ -147,7 +144,7 @@ impl WsClient {
         subscription_id: SubscriptionId,
     ) -> Result<()> {
         let msg = Payload::Request(new_rpc_request(Params::Unsubscribe(Unsubscribe {
-            topic: topic.into(),
+            topic,
             subscription_id,
         })));
         self.send_raw(msg).await
@@ -155,10 +152,7 @@ impl WsClient {
 }
 
 pub fn new_rpc_request(params: Params) -> Request {
-    let id = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
+    let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
 
     let id = id * 1000 + rand::thread_rng().gen_range(100, 1000);
 

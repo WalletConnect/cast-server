@@ -89,7 +89,7 @@ impl SubscriptionAuth {
             return Err(AuthError::InvalidAct)?;
         }
 
-        let mut parts = jwt.rsplitn(2, ".");
+        let mut parts = jwt.rsplitn(2, '.');
 
         let (Some(signature), Some(message)) = (parts.next(), parts.next()) else {
             return Err(AuthError::Format)?;

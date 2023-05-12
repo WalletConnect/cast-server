@@ -3,8 +3,7 @@ use {
     cast_server::{
         auth::SubscriptionAuth,
         handlers::notify::NotifyBody,
-        jsonrpc::Notification,
-        types::RegisterBody,
+        types::{Notification, RegisterBody},
     },
     chacha20poly1305::KeyInit,
     chrono::Utc,

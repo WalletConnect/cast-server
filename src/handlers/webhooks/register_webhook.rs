@@ -1,6 +1,6 @@
 use {
     super::WebhookConfig,
-    crate::{handlers::webhooks::validate_url, state::AppState, types::WebhookInfo},
+    crate::{error::Result, handlers::webhooks::validate_url, state::AppState, types::WebhookInfo},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
@@ -22,7 +22,7 @@ pub async fn handler(
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
     Json(webhook_info): Json<WebhookConfig>,
-) -> std::result::Result<axum::response::Response, crate::error::Error> {
+) -> Result<impl IntoResponse> {
     info!("Registering webhook for project: {}", project_id);
     let webhook_id = Uuid::new_v4().to_string();
 
@@ -49,6 +49,5 @@ pub async fn handler(
     Ok((
         axum::http::StatusCode::CREATED,
         Json(RegisterWebhookResponse { id: webhook_id }),
-    )
-        .into_response())
+    ))
 }

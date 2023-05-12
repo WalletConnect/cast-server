@@ -3,20 +3,19 @@ use {
     base64::Engine,
     cast_server::{
         auth::{jwt_token, SubscriptionAuth},
-        types::{Envelope, EnvelopeType0, EnvelopeType1},
+        types::{Envelope, EnvelopeType0, EnvelopeType1, Notification},
+        websocket_service::{NotifyMessage, NotifyResponse},
         wsclient,
     },
     chacha20poly1305::{
         aead::{generic_array::GenericArray, AeadMut},
-        consts::U12,
         ChaCha20Poly1305,
         KeyInit,
     },
     chrono::Utc,
-    rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, Rng, SeedableRng},
+    rand::{rngs::StdRng, Rng, SeedableRng},
     serde_json::json,
     sha2::Sha256,
-    std::time::SystemTime,
     walletconnect_sdk::rpc::{
         auth::ed25519_dalek::Keypair,
         domain::{ClientId, DecodedClientId},
@@ -62,7 +61,6 @@ PROJECT_ID to be set",
 
     let seed: [u8; 32] = rng.gen();
 
-    // let keypair = Keypair::generate(&mut seeded);
     let secret = StaticSecret::from(seed);
     let public = PublicKey::from(&secret);
 
@@ -88,8 +86,6 @@ PROJECT_ID to be set",
         .unwrap()
         .as_str()
         .unwrap();
-    dbg!(&dapp_pubkey);
-    dbg!(&hex::encode(keypair.secret_key().to_bytes()));
 
     let subscribe_topic = sha256::digest(&*hex::decode(dapp_pubkey).unwrap());
 
@@ -109,44 +105,24 @@ PROJECT_ID to be set",
 
     let subscription_auth = encode_subscription_auth(&subscription_auth, &keypair);
 
-    let id = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
+    let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
 
     let id = id * 1000 + rand::thread_rng().gen_range(100, 1000);
 
     let sub_auth = json!({ "subscriptionAuth": subscription_auth });
     let message = json!({"id": id,  "jsonrpc": "2.0", "params": sub_auth});
 
-    let mut rng = rand_core::OsRng {};
-
-    dbg!(&subscribe_topic);
     let response_topic_key = derive_key(dapp_pubkey.to_string(), hex::encode(secret.to_bytes()));
-    dbg!(&response_topic_key);
 
     let mut cipher = ChaCha20Poly1305::new(GenericArray::from_slice(
         &hex::decode(response_topic_key.clone()).unwrap(),
     ));
-    let uniform = Uniform::from(0u8..=255);
-    let nonce: GenericArray<u8, U12> =
-        GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
 
-    let encrypted = cipher
-        .encrypt(&nonce, message.to_string().as_bytes())
-        .unwrap();
-    dbg!(hex::encode(public.as_bytes()));
-
-    let envelope = EnvelopeType1 {
-        envelope_type: 1,
-        pubkey: public.to_bytes(),
-        iv: nonce.into(),
-        sealbox: encrypted,
-    };
+    let envelope =
+        Envelope::<EnvelopeType1>::new(&response_topic_key, message, *public.as_bytes()).unwrap();
     let message = base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
 
     let response_topic = sha256::digest(&*hex::decode(response_topic_key.clone()).unwrap());
-    dbg!(&response_topic);
 
     ws_client
         .publish_with_tag(&subscribe_topic, &message, 4006)
@@ -159,7 +135,6 @@ PROJECT_ID to be set",
         ws_client.recv().await.unwrap();
         ws_client.recv().await.unwrap()
     };
-    dbg!(&resp);
     if let crate::Payload::Request(Request {
         params: Params::Subscription(Subscription { data, .. }),
         id,
@@ -168,44 +143,42 @@ PROJECT_ID to be set",
     {
         ws_client.send_ack(id).await.unwrap();
 
-        let EnvelopeType0 { sealbox, iv, .. } = EnvelopeType0::from_bytes(
+        let Envelope::<EnvelopeType0> { sealbox, iv, .. } = Envelope::<EnvelopeType0>::from_bytes(
             base64::engine::general_purpose::STANDARD
                 .decode(data.message.as_bytes())
                 .unwrap(),
-        );
+        )
+        .unwrap();
 
         let decrypted_response = cipher
             .decrypt(&iv.into(), chacha20poly1305::aead::Payload::from(&*sealbox))
             .unwrap();
 
-        let response: serde_json::Value = serde_json::from_slice(&decrypted_response).unwrap();
+        let response: NotifyResponse<serde_json::Value> =
+            serde_json::from_slice(&decrypted_response).unwrap();
 
-        let pubkey = response
-            .get("result")
-            .unwrap()
-            .get("publicKey")
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let pubkey = response.result.get("publicKey").unwrap().as_str().unwrap();
 
         let notify_key = derive_key(pubkey.to_string(), hex::encode(secret.to_bytes()));
         let notify_topic = sha256::digest(&*hex::decode(&notify_key).unwrap());
 
         ws_client.subscribe(&notify_topic).await.unwrap();
         ws_client.recv().await.unwrap();
-
-        let notification = json!({
-            "title": "string",
-            "body": "string",
-            "icon": "string",
-            "url": "string",
-            "type": "test"
-        });
+        let notification = Notification {
+            title: "string".to_owned(),
+            body: "string".to_owned(),
+            icon: "string".to_owned(),
+            url: "string".to_owned(),
+            notification_type: "test".to_owned(),
+        };
 
         let notify_body = json!({
             "notification": notification,
             "accounts": ["test_account"]
         });
+
+        // wait for notify server to register the user
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
         http_client
             .post(format!("{}/{}/notify", &cast_url, &project_id))
@@ -222,29 +195,24 @@ PROJECT_ID to be set",
             let mut cipher =
                 ChaCha20Poly1305::new(GenericArray::from_slice(&hex::decode(notify_key).unwrap()));
 
-            let EnvelopeType0 { iv, sealbox, .. } = EnvelopeType0::from_bytes(
-                base64::engine::general_purpose::STANDARD
-                    .decode(data.message.as_bytes())
-                    .unwrap(),
-            );
+            let Envelope::<EnvelopeType0> { iv, sealbox, .. } =
+                Envelope::<EnvelopeType0>::from_bytes(
+                    base64::engine::general_purpose::STANDARD
+                        .decode(data.message.as_bytes())
+                        .unwrap(),
+                )
+                .unwrap();
 
-            let decrypted_notification: serde_json::Value = serde_json::from_slice(
+            let decrypted_notification: NotifyMessage<Notification> = serde_json::from_slice(
                 &cipher
                     .decrypt(&iv.into(), chacha20poly1305::aead::Payload::from(&*sealbox))
                     .unwrap(),
             )
             .unwrap();
 
-            let received_notification = decrypted_notification.get("params").unwrap().to_owned();
+            let received_notification = decrypted_notification.params;
 
             assert_eq!(received_notification, notification);
-
-            let id = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u64;
-
-            let id = id * 1000 + rand::thread_rng().gen_range(100, 1000);
 
             let delete_params = json!({
               "code": 400,
@@ -257,21 +225,8 @@ PROJECT_ID to be set",
                 "params": base64::engine::general_purpose::STANDARD.encode(delete_params.to_string().as_bytes())
             });
 
-            let nonce: GenericArray<u8, U12> =
-                GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
-
-            let encrypted_message = cipher
-                .encrypt(
-                    &nonce,
-                    chacha20poly1305::aead::Payload::from(delete_message.to_string().as_bytes()),
-                )
-                .unwrap();
-
-            let envelope = EnvelopeType0 {
-                envelope_type: 0,
-                iv: nonce.into(),
-                sealbox: encrypted_message,
-            };
+            let envelope =
+                Envelope::<EnvelopeType0>::new(&response_topic_key, delete_message).unwrap();
 
             let encoded_message =
                 base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
@@ -280,6 +235,19 @@ PROJECT_ID to be set",
                 .publish_with_tag(&notify_topic, &encoded_message, 4004)
                 .await
                 .unwrap();
+
+            // wait for notify server to unregister the user
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+            let resp = http_client
+                .post(format!("{}/{}/notify", &cast_url, &project_id))
+                .json(&notify_body)
+                .send()
+                .await
+                .unwrap();
+
+            let resp: cast_server::handlers::notify::Response = resp.json().await.unwrap();
+            assert_eq!(resp.failed.len(), 1);
         }
     } else {
         panic!("wrong response")

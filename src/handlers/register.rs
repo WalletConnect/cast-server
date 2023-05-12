@@ -30,10 +30,10 @@ pub async fn handler(
     let sub_auth = SubscriptionAuth::from_jwt(&data.subscription_auth)?;
 
     let register_data = ClientData {
-        id: data.account.into(),
+        id: data.account,
         relay_url: data.relay_url,
         sym_key: data.sym_key,
-        scope: sub_auth.scp.split(" ").map(|s| s.into()).collect(),
+        scope: sub_auth.scp.split(' ').map(|s| s.into()).collect(),
     };
 
     state

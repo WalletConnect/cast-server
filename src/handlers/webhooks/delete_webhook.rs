@@ -1,5 +1,5 @@
 use {
-    crate::{state::AppState, types::WebhookInfo},
+    crate::{error::Result, state::AppState, types::WebhookInfo},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
@@ -13,7 +13,7 @@ use {
 pub async fn handler(
     Path((project_id, webhook_id)): Path<(String, Uuid)>,
     State(state): State<Arc<AppState>>,
-) -> std::result::Result<axum::response::Response, crate::error::Error> {
+) -> Result<impl IntoResponse> {
     info!(
         "Deleting webhook: {} for project: {}",
         webhook_id, project_id
@@ -28,5 +28,5 @@ pub async fn handler(
         )
         .await?;
 
-    Ok((axum::http::StatusCode::OK).into_response())
+    Ok(axum::http::StatusCode::OK)
 }

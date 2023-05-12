@@ -110,6 +110,9 @@ pub enum Error {
 
     #[error(transparent)]
     ChronoParse(#[from] chrono::ParseError),
+
+    #[error(transparent)]
+    Anyhow(#[from] anyhow::Error),
 }
 
 impl IntoResponse for Error {

@@ -34,7 +34,7 @@ pub mod log;
 mod metrics;
 mod state;
 pub mod types;
-mod websocket_service;
+pub mod websocket_service;
 pub mod wsclient;
 
 build_info::build_info!(fn build_info);
@@ -66,10 +66,10 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
     let unregister_keypair = Keypair::generate(&mut seeded);
 
     // Create a channel for the unregister service
-    let (unregister_tx, unregister_rx) = tokio::sync::mpsc::channel(100);
+    let (webclient_tx, webclient_rx) = tokio::sync::mpsc::channel(100);
 
     // Creating state
-    let mut state = AppState::new(config, db, keypair, unregister_keypair, unregister_tx)?;
+    let mut state = AppState::new(config, db, keypair, unregister_keypair, webclient_tx)?;
 
     // Telemetry
     if state.config.telemetry_prometheus_port.is_some() {
@@ -147,7 +147,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
 
     // Start the websocket service
     info!("Starting websocket service");
-    let mut websocket_service = WebsocketService::new(state_arc, unregister_rx).await?;
+    let mut websocket_service = WebsocketService::new(state_arc, webclient_rx).await?;
 
     select! {
         _ = axum::Server::bind(&private_addr).serve(private_app.into_make_service()) => info!("Terminating metrics service"),

@@ -2,9 +2,9 @@ use {
     crate::{
         auth::jwt_token,
         error,
-        jsonrpc::{JsonRpcParams, JsonRpcPayload, Notification, PublishParams},
+        jsonrpc::{JsonRpcParams, JsonRpcPayload, PublishParams},
         state::AppState,
-        types::{ClientData, Envelope, EnvelopeType0},
+        types::{ClientData, Envelope, EnvelopeType0, Notification},
     },
     axum::{
         extract::{ConnectInfo, Path, State},
@@ -13,22 +13,14 @@ use {
         Json,
     },
     base64::Engine,
-    chacha20poly1305::{
-        aead::{generic_array::GenericArray, Aead},
-        consts::U12,
-        KeyInit,
-    },
     log::warn,
     mongodb::bson::doc,
     opentelemetry::{Context, KeyValue},
-    rand::{distributions::Uniform, prelude::Distribution},
-    rand_core::OsRng,
     serde::{Deserialize, Serialize},
     std::{
         collections::{HashMap, HashSet},
         net::SocketAddr,
         sync::Arc,
-        time::SystemTime,
     },
     tokio_stream::StreamExt,
     tracing::info,
@@ -63,7 +55,6 @@ pub async fn handler(
 ) -> Result<axum::response::Response, error::Error> {
     let timer = std::time::Instant::now();
     let db = state.database.clone();
-    let mut rng = OsRng {};
     let NotifyBody {
         notification,
         accounts,
@@ -71,16 +62,7 @@ pub async fn handler(
     let mut confirmed_sends = HashSet::new();
     let mut failed_sends: HashSet<SendFailure> = HashSet::new();
 
-    let id = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
-
-    let message = serde_json::to_string(&JsonRpcPayload {
-        id,
-        jsonrpc: "2.0".to_string(),
-        params: JsonRpcParams::Push(notification.clone()),
-    })?;
+    let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
 
     let mut cursor = db
         .collection::<ClientData>(&project_id)
@@ -94,52 +76,27 @@ pub async fn handler(
 
     let mut clients = HashMap::<String, Vec<(String, String)>>::new();
 
-    let uniform = Uniform::from(0u8..=255);
+    let message = &JsonRpcPayload {
+        id,
+        jsonrpc: "2.0".to_string(),
+        params: JsonRpcParams::Push(notification.clone()),
+    };
 
     while let Some(data) = cursor.try_next().await.unwrap() {
         not_found.remove(&data.id);
 
-        let encryption_key = hex::decode(&data.sym_key).unwrap();
-        let encrypted_notification = {
-            let cipher =
-                chacha20poly1305::ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
-
-            let nonce: GenericArray<u8, U12> =
-                GenericArray::from_iter(uniform.sample_iter(&mut rng).take(12));
-
-            let encrypted = match cipher.encrypt(&nonce, message.clone().as_bytes()) {
-                Err(_) => {
-                    failed_sends.insert(SendFailure {
-                        account: data.id,
-                        reason: "Failed to encrypt the payload".to_string(),
-                    });
-                    continue;
-                }
-                Ok(ciphertext) => ciphertext,
-            };
-
-            let envelope = EnvelopeType0 {
-                envelope_type: 0,
-                iv: nonce.into(),
-                sealbox: encrypted,
-            };
-
-            envelope.to_bytes()
-        };
+        let envelope = Envelope::<EnvelopeType0>::new(&data.sym_key, message.clone())?;
 
         let base64_notification =
-            base64::engine::general_purpose::STANDARD.encode(encrypted_notification);
+            base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
 
-        let id = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
+        let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
 
         let message = serde_json::to_string(&JsonRpcPayload {
             id,
             jsonrpc: "2.0".to_string(),
             params: JsonRpcParams::Publish(PublishParams {
-                topic: sha256::digest(&*encryption_key),
+                topic: sha256::digest(&*hex::decode(data.sym_key)?),
                 message: base64_notification.clone(),
                 ttl_secs: 86400,
                 tag: 4002,

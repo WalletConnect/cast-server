@@ -1,6 +1,6 @@
 use {
     super::WebhookConfig,
-    crate::{state::AppState, types::WebhookInfo},
+    crate::{error::Result, state::AppState, types::WebhookInfo},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
@@ -16,7 +16,7 @@ pub async fn handler(
     Path((project_id, webhook_id)): Path<(String, Uuid)>,
     State(state): State<Arc<AppState>>,
     Json(webhook_info): Json<WebhookConfig>,
-) -> std::result::Result<axum::response::Response, crate::error::Error> {
+) -> Result<impl IntoResponse> {
     info!(
         "Updating webhook: {} for project: {}",
         webhook_id, project_id
@@ -31,5 +31,5 @@ pub async fn handler(
         )
         .await?;
 
-    Ok(axum::http::StatusCode::NO_CONTENT.into_response())
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }

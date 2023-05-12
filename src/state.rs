@@ -22,8 +22,8 @@ pub struct AppState {
     pub metrics: Option<Metrics>,
     pub database: Arc<mongodb::Database>,
     pub keypair: Keypair,
-    pub unregister_keypair: Keypair,
-    pub unregister_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
+    pub webclient_keypair: Keypair,
+    pub webclient_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
 }
 
 build_info::build_info!(fn build_info);
@@ -33,8 +33,8 @@ impl AppState {
         config: Configuration,
         database: Arc<mongodb::Database>,
         keypair: Keypair,
-        unregister_keypair: Keypair,
-        unregister_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
+        webclient_keypair: Keypair,
+        webclient_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 
@@ -44,14 +44,14 @@ impl AppState {
             metrics: None,
             database,
             keypair,
-            unregister_keypair,
-            unregister_tx,
+            webclient_keypair,
+            webclient_tx,
         })
     }
 
     pub async fn register_client(
         &self,
-        project_id: &String,
+        project_id: &str,
         client_data: &ClientData,
         url: &Url,
     ) -> Result<()> {
@@ -64,10 +64,9 @@ impl AppState {
             sym_key: client_data.sym_key.clone(),
             scope: client_data.scope.clone(),
         };
-        // Currently overwriting the document if it exists,
-        // but we should probably just update the fields
+
         self.database
-            .collection::<ClientData>(&project_id)
+            .collection::<ClientData>(project_id)
             .replace_one(
                 doc! { "_id": client_data.id.clone()},
                 insert_data,
@@ -81,17 +80,17 @@ impl AppState {
                 doc! { "_id": &topic},
                 LookupEntry {
                     topic: topic.clone(),
-                    project_id: project_id.clone(),
+                    project_id: project_id.to_string(),
                     account: client_data.id.clone(),
                 },
                 ReplaceOptions::builder().upsert(true).build(),
             )
             .await?;
 
-        self.unregister_tx
+        self.webclient_tx
             .send(WebsocketMessage::Register(topic))
             .await
-            .unwrap();
+            .map_err(|_| crate::error::Error::ChannelClosed)?;
 
         self.notify_webhook(
             project_id,
@@ -123,13 +122,14 @@ impl AppState {
             .find(doc! { "project_id": project_id}, None)
             .await?;
 
+        let client = reqwest::Client::new();
+
         // Interate over cursor
         while let Some(webhook) = cursor.try_next().await? {
             if !webhook.events.contains(&event) {
                 continue;
             }
 
-            let client = reqwest::Client::new();
             let res = client
                 .post(&webhook.url)
                 .json(&WebhookMessage {

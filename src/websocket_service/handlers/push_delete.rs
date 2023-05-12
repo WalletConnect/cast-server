@@ -1,5 +1,7 @@
 use {
+    anyhow::anyhow,
     crate::{
+        error::Error,
         log::{info, warn},
         state::{AppState, WebhookNotificationEvent},
         types::{ClientData, Envelope, EnvelopeType0, LookupEntry},
@@ -26,90 +28,61 @@ pub async fn handle(
     let database = &state.database;
     let subscription_id = params.id;
 
-    match database
+    let Ok(Some(LookupEntry {
+        project_id, 
+        account,
+        ..
+    }))= database
         .collection::<LookupEntry>("lookup_table")
-        .find_one_and_delete(doc! {"_id": &topic.clone().to_string() }, None)
+        .find_one_and_delete(doc! {"_id": &topic.to_string() }, None)
         .await
-    {
-        Ok(Some(LookupEntry {
-            project_id,
-            account,
-            ..
-        })) => {
-            match database
-                .collection::<ClientData>(&project_id)
+        else {
+            return Err(Error::NoProjectDataForTopic(topic.to_string()))
+        };
+
+    let Ok(Some(acc)) = database
+                 .collection::<ClientData>(&project_id)
                 .find_one_and_delete(doc! {"_id": &account }, None)
-                .await
-            {
-                Ok(Some(acc)) => {
-                    match base64::engine::general_purpose::STANDARD
-                        .decode(params.data.message.to_string())
-                    {
-                        Ok(message_bytes) => {
-                            let envelope = EnvelopeType0::from_bytes(message_bytes);
-                            // Safe unwrap - we are sure that stored keys are valid
-                            let encryption_key = hex::decode(&acc.sym_key)?;
-                            let cipher =
-                                ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
+                .await else {
+                    return Err(Error::NoClientDataForTopic(topic.to_string()))
+                };
 
-                            match cipher.decrypt(
-                                GenericArray::from_slice(&envelope.iv),
-                                chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
-                            ) {
-                                Ok(msg) => {
-                                    let msg = String::from_utf8(msg)?;
-                                    info!(
-                                        "Unregistered {} from {} with reason {}",
-                                        account, project_id, msg
-                                    );
-                                    if let Err(e) =
-                                        client.unsubscribe(topic.clone(), subscription_id).await
-                                    {
-                                        warn!("Error unsubscribing Cast from topic: {}", e);
-                                    };
+    let Ok(message_bytes) = base64::engine::general_purpose::STANDARD
+        .decode(params.data.message.to_string()) else {
+            Err(anyhow!("Failed to decode message"))?
+        };
 
-                                    state
-                                        .notify_webhook(
-                                            &project_id,
-                                            WebhookNotificationEvent::Unsubscribed,
-                                            &account,
-                                        )
-                                        .await?;
-                                }
-                                Err(e) => {
-                                    warn!(
-                                        "Unregistered {} from {}, but couldn't decrypt reason \
-                                         data: {}",
-                                        account, project_id, e
-                                    );
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Unregistered {} from {}, but couldn't decode base64 message \
-                                 data: {}",
-                                project_id,
-                                params.data.message.to_string(),
-                                e
-                            );
-                        }
-                    };
-                }
-                Ok(None) => {
-                    warn!("No entry found for account: {}", &account);
-                }
-                Err(e) => {
-                    warn!("Error unregistering account {}: {}", &account, e);
-                }
-            }
-        }
-        Ok(None) => {
-            warn!("No entry found for topic: {}", &topic);
-        }
-        Err(e) => {
-            warn!("Error unregistering from topic {}: {}", &topic, e);
-        }
-    }
+    let envelope = Envelope::<EnvelopeType0>::from_bytes(message_bytes)?;
+    let encryption_key = hex::decode(&acc.sym_key)?;
+    let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(&encryption_key));
+
+    let Ok(msg) = cipher.decrypt(
+            GenericArray::from_slice(&envelope.iv),
+            chacha20poly1305::aead::Payload::from(&*envelope.sealbox),
+        ) else {
+            warn!(
+                "Unregistered {} from {}, but couldn't decrypt message",
+                account, project_id
+            );
+            return Err(Error::EncryptionError("Failed to decrypt".to_string()))
+        };
+
+    let msg = String::from_utf8(msg)?;
+    info!(
+        "Unregistered {} from {} with reason {}",
+        account, project_id, msg
+    );
+    if let Err(e) = client.unsubscribe(topic.clone(), subscription_id).await {
+        warn!("Error unsubscribing Cast from topic: {}", e);
+    };
+
+    state
+        .notify_webhook(
+            &project_id,
+            WebhookNotificationEvent::Unsubscribed,
+            &account,
+        )
+        .await?;
+
     Ok(())
 }

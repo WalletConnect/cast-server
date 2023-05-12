@@ -1,6 +1,6 @@
 use {
     super::WebhookConfig,
-    crate::{state::AppState, types::WebhookInfo},
+    crate::{error::Result, state::AppState, types::WebhookInfo},
     axum::{
         extract::{Path, State},
         response::IntoResponse,
@@ -15,25 +15,31 @@ use {
 pub async fn handler(
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
-) -> std::result::Result<axum::response::Response, crate::error::Error> {
+) -> Result<impl IntoResponse> {
     info!("Getting webhooks for project: {}", project_id);
 
-    let mut webhooks = HashMap::new();
-
-    let mut cursor = state
+    let cursor = state
         .database
         .collection::<WebhookInfo>("webhooks")
         .find(doc! {"project_id": project_id}, None)
         .await?;
 
-    // Iterate over cursor adding webhook id:webhookconfig pairs to hashmap
-    while let Some(webhook) = cursor.try_next().await? {
-        let webhook_config = WebhookConfig {
-            url: webhook.url,
-            events: webhook.events,
-        };
-        webhooks.insert(webhook.id, webhook_config);
-    }
+    let webhooks: HashMap<_, _> =
+        cursor
+            .try_collect()
+            .await
+            .map(|webhooks: Vec<WebhookInfo>| {
+                webhooks
+                    .into_iter()
+                    .map(|webhook| {
+                        let webhook_config = WebhookConfig {
+                            url: webhook.url,
+                            events: webhook.events,
+                        };
+                        (webhook.id, webhook_config)
+                    })
+                    .collect()
+            })?;
 
-    Ok((axum::http::StatusCode::OK, Json(webhooks)).into_response())
+    Ok((axum::http::StatusCode::OK, Json(webhooks)))
 }

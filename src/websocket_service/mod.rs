@@ -49,7 +49,7 @@ impl WebsocketService {
         let mut client = wsclient::connect(
             &app_state.config.relay_url,
             &app_state.config.project_id,
-            jwt_token(&url, &app_state.unregister_keypair)?,
+            jwt_token(&url, &app_state.webclient_keypair)?,
         )
         .await?;
 
@@ -64,7 +64,7 @@ impl WebsocketService {
 
     async fn reconnect(&mut self) -> Result<()> {
         let url = self.state.config.relay_url.clone();
-        let jwt = jwt_token(&url, &self.state.unregister_keypair)?;
+        let jwt = jwt_token(&url, &self.state.webclient_keypair)?;
         self.client = wsclient::connect(&url, &self.state.config.project_id, jwt).await?;
         resubscribe(&self.state.database, &mut self.client).await?;
         Ok(())
@@ -200,8 +200,6 @@ async fn handle_msg(msg: Payload, state: &Arc<AppState>, client: &mut WsClient) 
     Ok(())
 }
 
-// Handle wc_pushSubscribe
-
 fn derive_key(pubkey: String, privkey: String) -> Result<String> {
     let pubkey: [u8; 32] = hex::decode(pubkey)?[..32].try_into()?;
     let privkey: [u8; 32] = hex::decode(privkey)?[..32].try_into()?;
@@ -221,17 +219,17 @@ fn derive_key(pubkey: String, privkey: String) -> Result<String> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct NotifyMessage<T> {
-    id: u64,
-    jsonrpc: String,
-    params: T,
+pub struct NotifyMessage<T> {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub params: T,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct NotifyResponse<T> {
-    id: u64,
-    jsonrpc: String,
-    result: T,
+pub struct NotifyResponse<T> {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub result: T,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
