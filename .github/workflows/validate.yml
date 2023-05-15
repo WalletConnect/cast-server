@@ -34,3 +34,4 @@ jobs:
         env:
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
           ENVIRONMENT: ${{ inputs.environment }}
+          TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
