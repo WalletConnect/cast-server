@@ -36,6 +36,8 @@ pub struct ClientData {
     pub scope: HashSet<String>,
 }
 
+// TODO: Remove this as soon as wc_pushRequest -> wc_pushSubscribe migration is
+// done
 fn default_scope() -> HashSet<String> {
     let mut scope = HashSet::with_capacity(1);
     scope.insert("gm_hourly".into());
@@ -176,6 +178,8 @@ pub struct Notification {
     pub r#type: String,
 }
 
+// TODO: Remove this as soon as wc_pushRequest -> wc_pushSubscribe migration is
+// done
 fn default_notification_type() -> String {
     "gm_hourly".to_string()
 }
