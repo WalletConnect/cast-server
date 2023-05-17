@@ -38,7 +38,7 @@ pub struct ClientData {
 
 fn default_scope() -> HashSet<String> {
     let mut scope = HashSet::with_capacity(1);
-    scope.insert("v1".into());
+    scope.insert("gm_hourly".into());
     scope
 }
 
@@ -177,5 +177,5 @@ pub struct Notification {
 }
 
 fn default_notification_type() -> String {
-    "v1".to_string()
+    "gm_hourly".to_string()
 }

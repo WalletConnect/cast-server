@@ -53,7 +53,7 @@ pub struct SubscriptionAuth {
 }
 
 fn default_scope() -> String {
-    "v1".to_string()
+    "gm_hourly".to_string()
 }
 
 fn default_act() -> String {
