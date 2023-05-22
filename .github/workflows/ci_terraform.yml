@@ -70,6 +70,8 @@ jobs:
         run: |
           WORKSPACE_ID=$(aws grafana list-workspaces | jq -r '.workspaces[] | select( .tags.Env == "prod") | select( .tags.Name == "grafana-9") | .id')
           ENDPOINT=$(aws grafana list-workspaces | jq -r '.workspaces[] | select( .tags.Env == "prod") | select( .tags.Name == "grafana-9") | .endpoint')
+          echo "::set-output name=workspace-id::$WORKSPACE_ID"
+          echo "::set-output name=endpoint::$ENDPOINT"
 
       - name: Get Grafana key
         id: grafana-get-key
@@ -136,6 +138,8 @@ jobs:
         run: |
           WORKSPACE_ID=$(aws grafana list-workspaces | jq -r '.workspaces[] | select( .tags.Env == "prod") | select( .tags.Name == "grafana-9") | .id')
           ENDPOINT=$(aws grafana list-workspaces | jq -r '.workspaces[] | select( .tags.Env == "prod") | select( .tags.Name == "grafana-9") | .endpoint')
+          echo "::set-output name=workspace-id::$WORKSPACE_ID"
+          echo "::set-output name=endpoint::$ENDPOINT"
 
       - name: Get Grafana key
         id: grafana-get-key
