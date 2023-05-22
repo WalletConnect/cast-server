@@ -67,7 +67,9 @@ jobs:
 
       - name: Get Grafana details
         id: grafana-get-details
-        uses: WalletConnect/actions/aws/grafana/get-details/@1.0.0
+        run: |
+          WORKSPACE_ID=$(aws grafana list-workspaces | jq -r '.workspaces[] | select( .tags.Env == "prod") | select( .tags.Name == "grafana-9") | .id')
+          ENDPOINT=$(aws grafana list-workspaces | jq -r '.workspaces[] | select( .tags.Env == "prod") | select( .tags.Name == "grafana-9") | .endpoint')
 
       - name: Get Grafana key
         id: grafana-get-key
@@ -131,7 +133,9 @@ jobs:
 
       - name: Get Grafana details
         id: grafana-get-details
-        uses: WalletConnect/actions/aws/grafana/get-details/@1.0.0
+        run: |
+          WORKSPACE_ID=$(aws grafana list-workspaces | jq -r '.workspaces[] | select( .tags.Env == "prod") | select( .tags.Name == "grafana-9") | .id')
+          ENDPOINT=$(aws grafana list-workspaces | jq -r '.workspaces[] | select( .tags.Env == "prod") | select( .tags.Name == "grafana-9") | .endpoint')
 
       - name: Get Grafana key
         id: grafana-get-key
