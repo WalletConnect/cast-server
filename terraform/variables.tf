@@ -18,7 +18,7 @@ variable "grafana_endpoint" {
 }
 
 variable "image_version" {
-  type    = string
+  type = string
 }
 
 variable "docdb_primary_instance_class" {
