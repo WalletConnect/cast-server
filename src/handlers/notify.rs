@@ -145,7 +145,7 @@ pub async fn handler(
                     };
                 }
                 Err(e) => {
-                    warn!("{}", e);
+                    warn!("Failed sending to: {} with :{}", &sender, e);
                     failed_sends.insert(SendFailure {
                         account: sender,
                         reason: format!(
