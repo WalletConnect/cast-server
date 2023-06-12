@@ -44,7 +44,7 @@ jobs:
             cmd: clippy
             args: -- -D clippy::all
             cache: {}
-            rust: nightly 
+            rust: stable 
           - name: "Formatting"
             cmd: fmt
             args: -- --check
@@ -57,7 +57,7 @@ jobs:
             rust: stable
         include:
           - os: ubuntu-latest
-            sccache-path: /home/runner/.cache/sccache
+            # sccache-path: /home/runner/.cache/sccache
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
