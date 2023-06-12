@@ -92,11 +92,18 @@ pub async fn handler(
 
         let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
 
+        let topic = sha256::digest(&*hex::decode(data.sym_key)?);
+
+        info!(
+            "message to {}, on topic: {} with message_id: {}",
+            data.id, &topic, id
+        );
+
         let message = serde_json::to_string(&JsonRpcPayload {
             id,
             jsonrpc: "2.0".to_string(),
             params: JsonRpcParams::Publish(PublishParams {
-                topic: sha256::digest(&*hex::decode(data.sym_key)?),
+                topic,
                 message: base64_notification.clone(),
                 ttl_secs: 86400,
                 tag: 4002,
@@ -126,7 +133,7 @@ pub async fn handler(
                     let ws = &mut connection.0;
                     match ws.write_message(tungstenite::Message::Text(encrypted_notification)) {
                         Ok(_) => {
-                            info!("Casting to client");
+                            info!("Casting to client {}", &sender);
                             confirmed_sends.insert(sender);
                         }
                         Err(e) => {
