@@ -44,7 +44,7 @@ jobs:
             cmd: clippy
             args: -- -D clippy::all
             cache: {}
-            rust: stable
+            rust: nightly 
           - name: "Formatting"
             cmd: fmt
             args: -- --check
