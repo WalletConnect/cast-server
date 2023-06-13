@@ -1,4 +1,4 @@
 [build]
 rustflags = [
-    "-C", "linker=lld"
+    "-C", "link-arg=-fuse-ld=lld",
 ]
