@@ -24,6 +24,7 @@ use {
     },
     tokio_stream::StreamExt,
     tracing::info,
+    walletconnect_sdk::rpc::domain::{ClientId, DecodedClientId},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -62,6 +63,9 @@ pub async fn handler(
     let mut confirmed_sends = HashSet::new();
     let mut failed_sends: HashSet<SendFailure> = HashSet::new();
 
+    let decoded_client_id = DecodedClientId(*state.keypair.public_key().as_bytes());
+    let client_id = ClientId::from(decoded_client_id);
+
     let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
 
     let mut cursor = db
@@ -95,8 +99,8 @@ pub async fn handler(
         let topic = sha256::digest(&*hex::decode(data.sym_key)?);
 
         info!(
-            "Generated message to {}, on topic: {} with message_id: {}",
-            data.id, &topic, id
+            "Generated message to {}, on topic: {} with message_id: {}, client_id: {}",
+            data.id, &topic, id, &client_id
         );
 
         let message = serde_json::to_string(&JsonRpcPayload {
