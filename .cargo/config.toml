@@ -2,3 +2,8 @@
 rustflags = [
     "-C", "link-arg=-fuse-ld=lld",
 ]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-C", "linker=clang",
+]
