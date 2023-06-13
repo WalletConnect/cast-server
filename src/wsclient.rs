@@ -1,11 +1,10 @@
 pub use walletconnect_sdk::rpc::domain::MessageId;
 use {
-    crate::{auth::jwt_token, error::Result, types::Envelope},
+    crate::{auth::jwt_token, error::Result},
     futures::{future, StreamExt},
     rand::Rng,
     std::{
         collections::{HashMap, HashSet},
-        sync::{Arc, RwLock},
         time::Duration,
     },
     tokio::{select, sync::mpsc},
@@ -91,7 +90,7 @@ impl WsClient {
                             Payload::Response(res) => {
                                 info!("Received response from Relay WS: {:?}", res);
                                 let id = res.id();
-                                // TODO: Remove unwrap)
+                                // TODO: Remove unwrap; distinguish between response types
                                 if let Err(e) = self.ack_broadcast.send(id) {
                                     warn!("Failed to broadcast ack: {}", e);
                                 }
@@ -146,6 +145,7 @@ impl WsClient {
         messages: Vec<(Topic, String)>,
         tag: u32,
     ) -> Result<HashSet<Topic>> {
+        info!("SEnding to relay ------------------------------------------------");
         if messages.len() == 0 {
             return Ok(HashSet::new());
         }
@@ -154,6 +154,8 @@ impl WsClient {
         let mut mapping: HashMap<MessageId, Topic> = HashMap::new();
 
         let mut acks = self.ack_broadcast.subscribe();
+
+        info!("Messages len {} ", messages.len());
 
         for (topic, payload) in messages.into_iter() {
             let request = new_rpc_request(walletconnect_sdk::rpc::rpc::Params::Publish(Publish {
@@ -167,6 +169,7 @@ impl WsClient {
             mapping.insert(request.id.clone(), topic.clone());
             unacked.insert(request.id);
 
+            info!("Sending to relay, want ack for {:?}", request.id);
             self.send_raw(Payload::Request(request)).await?;
         }
 
@@ -174,7 +177,9 @@ impl WsClient {
 
         // We don't care about time running out, we just return the unacked
         _ = tokio::time::timeout(timeout_duration, async {
+            info!("Waiting for acks from Relay WS...");
             while let Ok(ack) = acks.recv().await {
+                info!("Received ack from Relay WS: {:?}", ack);
                 unacked.remove(&ack);
                 if unacked.is_empty() {
                     break;
@@ -232,7 +237,7 @@ pub fn new_rpc_request(params: Params) -> Request {
 
 pub async fn connect(url: &str, project_id: &str, jwt: String) -> Result<WsClient> {
     info!("Connecting to Relay WS ({})...", url);
-    let relay_query = format!("auth={jwt}&projectId={project_id}");
+    let relay_query = format!("auth={jwt}&projectId={project_id}&ua=wc-2/rust/cast");
 
     let mut url = url::Url::parse(url)?;
     url.set_query(Some(&relay_query));

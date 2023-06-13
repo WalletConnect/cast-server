@@ -2,7 +2,7 @@ use {
     crate::{
         auth::jwt_token,
         error,
-        jsonrpc::{JsonRpcParams, JsonRpcPayload, PublishParams},
+        jsonrpc::{JsonRpcParams, JsonRpcPayload},
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0, Notification},
         wsclient,
@@ -14,7 +14,6 @@ use {
         Json,
     },
     base64::Engine,
-    log::warn,
     mongodb::bson::doc,
     opentelemetry::{Context, KeyValue},
     serde::{Deserialize, Serialize},
@@ -71,10 +70,7 @@ pub async fn handler(
 
     let mut cursor = db
         .collection::<ClientData>(&project_id)
-        .find(
-            doc! { "_id": {"$in": &accounts}, "scope": { "$elemMatch": { "$eq": &notification.r#type } }},
-            None,
-        )
+        .find(doc! { "_id": {"$in": &accounts}}, None)
         .await?;
 
     let mut not_found: HashSet<String> = accounts.into_iter().collect();
@@ -90,6 +86,15 @@ pub async fn handler(
 
     while let Some(client_data) = cursor.try_next().await? {
         not_found.remove(&client_data.id);
+
+        if !client_data.scope.contains(&notification.r#type) {
+            failed_sends.insert(SendFailure {
+                account: client_data.id.clone(),
+                reason: "Client is not subscribed to this topic".into(),
+            });
+            continue;
+        }
+
         confirmed_sends.insert(client_data.id.clone());
 
         let envelope = Envelope::<EnvelopeType0>::new(&client_data.sym_key, &message)?;
@@ -168,8 +173,8 @@ pub async fn handler(
     };
 
     info!(
-        "Response: {:?} for notify from project: {}",
-        response, project_id
+        "Response: {:?} for notify from project: {} for request: {}",
+        response, project_id, uuid
     );
 
     Ok((StatusCode::OK, Json(response)).into_response())
