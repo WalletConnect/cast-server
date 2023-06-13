@@ -1,9 +1,13 @@
+pub use walletconnect_sdk::rpc::domain::MessageId;
 use {
-    crate::{auth::jwt_token, error::Result},
-    dashmap::DashMap,
+    crate::{auth::jwt_token, error::Result, types::Envelope},
     futures::{future, StreamExt},
     rand::Rng,
-    std::sync::Arc,
+    std::{
+        collections::{HashMap, HashSet},
+        sync::{Arc, RwLock},
+        time::Duration,
+    },
     tokio::{select, sync::mpsc},
     tokio_stream::wrappers::ReceiverStream,
     tracing::{info, warn},
@@ -24,16 +28,14 @@ use {
     },
 };
 
-type MessageId = String;
-
 #[derive(Debug)]
 pub struct WsClient {
     pub project_id: String,
     pub tx: mpsc::Sender<Message>,
     pub rx: mpsc::Receiver<Result<Message>>,
+    pub ack_broadcast: tokio::sync::broadcast::Sender<MessageId>,
+    _ack_receiver: tokio::sync::broadcast::Receiver<MessageId>,
     pub handler: tokio::task::JoinHandle<()>,
-    /// Received ACKs, contains a set of message IDs.
-    pub received_acks: Arc<DashMap<MessageId, serde_json::Value>>,
 }
 
 impl WsClient {
@@ -69,26 +71,39 @@ impl WsClient {
     }
 
     pub async fn send_raw(&mut self, msg: Payload) -> Result<()> {
-        let msg = serde_json::to_string(&msg).unwrap();
+        let msg = serde_json::to_string(&msg)?;
         self.tx
             .send(Message::Text(msg))
             .await
             .map_err(|_| crate::error::Error::ChannelClosed)
     }
 
-    pub async fn recv(&mut self) -> Result<Payload> {
+    pub async fn recv(&mut self) -> Result<walletconnect_sdk::rpc::rpc::Request> {
         loop {
             match self.rx.recv().await {
                 Some(msg) => match msg? {
                     Message::Text(msg) => {
-                        return Ok(serde_json::from_str(&msg)?);
+                        match serde_json::from_str::<Payload>(&msg)? {
+                            Payload::Request(req) => {
+                                info!("Received request from Relay WS: {:?}", req);
+                                return Ok(req);
+                            }
+                            Payload::Response(res) => {
+                                info!("Received response from Relay WS: {:?}", res);
+                                let id = res.id();
+                                // TODO: Remove unwrap)
+                                if let Err(e) = self.ack_broadcast.send(id) {
+                                    warn!("Failed to broadcast ack: {}", e);
+                                }
+                            }
+                        }
                     }
                     Message::Ping(_) => {
                         info!("Received ping from Relay WS, sending pong");
                         self.pong().await?;
                     }
                     e => {
-                        warn!("{:?}", e);
+                        warn!("Received unsupported message from relay: {:?}", e);
                     }
                 },
                 None => {
@@ -122,6 +137,58 @@ impl WsClient {
         ));
 
         self.send_raw(msg).await
+    }
+
+    /// Sends batch of messages with provided tag to relay. Returns set of
+    /// topics for which relay didn't ack the published message..
+    pub async fn batch_publish_with_tag(
+        &mut self,
+        messages: Vec<(Topic, String)>,
+        tag: u32,
+    ) -> Result<HashSet<Topic>> {
+        if messages.len() == 0 {
+            return Ok(HashSet::new());
+        }
+
+        let mut unacked: HashSet<MessageId> = HashSet::new();
+        let mut mapping: HashMap<MessageId, Topic> = HashMap::new();
+
+        let mut acks = self.ack_broadcast.subscribe();
+
+        for (topic, payload) in messages.into_iter() {
+            let request = new_rpc_request(walletconnect_sdk::rpc::rpc::Params::Publish(Publish {
+                topic: topic.clone(),
+                message: payload.into(),
+                ttl_secs: 86400,
+                tag,
+                prompt: true,
+            }));
+
+            mapping.insert(request.id.clone(), topic.clone());
+            unacked.insert(request.id);
+
+            self.send_raw(Payload::Request(request)).await?;
+        }
+
+        let timeout_duration = Duration::from_secs(30);
+
+        // We don't care about time running out, we just return the unacked
+        _ = tokio::time::timeout(timeout_duration, async {
+            while let Ok(ack) = acks.recv().await {
+                unacked.remove(&ack);
+                if unacked.is_empty() {
+                    break;
+                }
+            }
+        })
+        .await;
+
+        let unacked = unacked
+            .into_iter()
+            .filter_map(|id| mapping.remove(&id))
+            .collect();
+
+        Ok(unacked)
     }
 
     pub async fn subscribe(&mut self, topic: &str) -> Result<()> {
@@ -174,6 +241,7 @@ pub async fn connect(url: &str, project_id: &str, jwt: String) -> Result<WsClien
 
     // A channel for passing messages to websocket
     let (wr_tx, wr_rx) = mpsc::channel(1024);
+    let (ack_tx, ack_rx) = tokio::sync::broadcast::channel(1024);
 
     // A channel for incoming messages from websocket
     let (rd_tx, rd_rx) = mpsc::channel::<Result<_>>(1024);
@@ -208,7 +276,8 @@ pub async fn connect(url: &str, project_id: &str, jwt: String) -> Result<WsClien
         project_id: project_id.to_string(),
         tx: wr_tx,
         rx: rd_rx,
+        _ack_receiver: ack_rx,
+        ack_broadcast: ack_tx,
         handler,
-        received_acks: Default::default(),
     })
 }

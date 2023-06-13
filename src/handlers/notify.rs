@@ -5,6 +5,7 @@ use {
         jsonrpc::{JsonRpcParams, JsonRpcPayload, PublishParams},
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0, Notification},
+        wsclient,
     },
     axum::{
         extract::{ConnectInfo, Path, State},
@@ -24,6 +25,7 @@ use {
     },
     tokio_stream::StreamExt,
     tracing::info,
+    walletconnect_sdk::rpc::domain::Topic,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -53,6 +55,9 @@ pub async fn handler(
     State(state): State<Arc<AppState>>,
     Json(cast_args): Json<NotifyBody>,
 ) -> Result<axum::response::Response, error::Error> {
+    // Request id for logs
+    let uuid = uuid::Uuid::new_v4().to_string();
+
     let timer = std::time::Instant::now();
     let db = state.database.clone();
     let NotifyBody {
@@ -74,84 +79,55 @@ pub async fn handler(
 
     let mut not_found: HashSet<String> = accounts.into_iter().collect();
 
-    let mut clients = HashMap::<String, Vec<(String, String)>>::new();
-
-    let message = &JsonRpcPayload {
+    let message = JsonRpcPayload {
         id,
         jsonrpc: "2.0".to_string(),
         params: JsonRpcParams::Push(notification.clone()),
     };
 
-    while let Some(data) = cursor.try_next().await.unwrap() {
-        not_found.remove(&data.id);
+    let mut messages: Vec<(Topic, String)> = vec![];
+    let mut mapping: HashMap<Topic, String> = HashMap::new();
 
-        let envelope = Envelope::<EnvelopeType0>::new(&data.sym_key, message)?;
+    while let Some(client_data) = cursor.try_next().await? {
+        not_found.remove(&client_data.id);
+        confirmed_sends.insert(client_data.id.clone());
+
+        let envelope = Envelope::<EnvelopeType0>::new(&client_data.sym_key, &message)?;
 
         let base64_notification =
             base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
 
-        let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
+        let topic = Topic::new(sha256::digest(&*hex::decode(client_data.sym_key)?).into());
 
-        let message = serde_json::to_string(&JsonRpcPayload {
-            id,
-            jsonrpc: "2.0".to_string(),
-            params: JsonRpcParams::Publish(PublishParams {
-                topic: sha256::digest(&*hex::decode(data.sym_key)?),
-                message: base64_notification.clone(),
-                ttl_secs: 86400,
-                tag: 4002,
-                prompt: true,
-            }),
-        })?;
-
-        clients
-            .entry(data.relay_url)
-            .or_default()
-            .push((message, data.id));
+        mapping.insert(topic.clone(), client_data.id.clone());
+        messages.push((topic, base64_notification));
     }
 
-    for (url, notifications) in clients {
-        let token = jwt_token(&url, &state.keypair)?;
-        let relay_query = format!("projectId={project_id}&auth={token}");
+    let mut client = wsclient::connect(
+        &state.config.relay_url,
+        &state.config.project_id,
+        dbg!(jwt_token(&state.config.relay_url, &state.keypair))?,
+    )
+    .await?;
 
-        let mut url = url::Url::parse(&url)?;
-        url.set_query(Some(&relay_query));
-        let mut connection = tungstenite::connect(&url);
+    let unacked = client
+        .batch_publish_with_tag(messages, 4002)
+        .await?
+        .into_iter()
+        .filter_map(|topic| mapping.get(&topic))
+        .cloned()
+        .collect::<HashSet<String>>();
 
-        for notification_data in notifications {
-            let (encrypted_notification, sender) = notification_data;
+    if unacked.len() > 0 {
+        info!("Unacked messages: {:?} for request {}", unacked, uuid);
+    }
 
-            match &mut connection {
-                Ok(connection) => {
-                    let ws = &mut connection.0;
-                    match ws.write_message(tungstenite::Message::Text(encrypted_notification)) {
-                        Ok(_) => {
-                            info!("Casting to client");
-                            confirmed_sends.insert(sender);
-                        }
-                        Err(e) => {
-                            failed_sends.insert(SendFailure {
-                                account: sender,
-                                reason: e.to_string(),
-                            });
-                        }
-                    };
-                }
-                Err(e) => {
-                    warn!("{}", e);
-                    failed_sends.insert(SendFailure {
-                        account: sender,
-                        reason: format!(
-                            "Failed connecting to {}://{}",
-                            &url.scheme(),
-                            // Safe unwrap since all stored urls are "wss://", for which host
-                            // always exists
-                            &url.host().unwrap()
-                        ),
-                    });
-                }
-            }
-        }
+    for account in unacked {
+        confirmed_sends.remove(&account);
+        failed_sends.insert(SendFailure {
+            account,
+            reason: "Relay never acknowledged the message".into(),
+        });
     }
 
     if let Some(metrics) = &state.metrics {

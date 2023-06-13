@@ -22,8 +22,8 @@ pub struct AppState {
     pub metrics: Option<Metrics>,
     pub database: Arc<mongodb::Database>,
     pub keypair: Keypair,
-    pub webclient_keypair: Keypair,
-    pub webclient_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
+    pub wsclient_keypair: Keypair,
+    pub wsclient_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
 }
 
 build_info::build_info!(fn build_info);
@@ -33,8 +33,8 @@ impl AppState {
         config: Configuration,
         database: Arc<mongodb::Database>,
         keypair: Keypair,
-        webclient_keypair: Keypair,
-        webclient_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
+        wsclient_keypair: Keypair,
+        wsclient_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 
@@ -44,8 +44,8 @@ impl AppState {
             metrics: None,
             database,
             keypair,
-            webclient_keypair,
-            webclient_tx,
+            wsclient_keypair,
+            wsclient_tx,
         })
     }
 
@@ -87,7 +87,7 @@ impl AppState {
             )
             .await?;
 
-        self.webclient_tx
+        self.wsclient_tx
             .send(WebsocketMessage::Register(topic))
             .await
             .map_err(|_| crate::error::Error::ChannelClosed)?;

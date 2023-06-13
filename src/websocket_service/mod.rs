@@ -16,10 +16,7 @@ use {
     sha2::Sha256,
     std::sync::Arc,
     tokio::sync::mpsc::Receiver,
-    walletconnect_sdk::rpc::{
-        domain::MessageId,
-        rpc::{Params, Payload},
-    },
+    walletconnect_sdk::rpc::{domain::MessageId, rpc::Params},
 };
 
 mod handlers;
@@ -49,7 +46,7 @@ impl WebsocketService {
         let mut client = wsclient::connect(
             &app_state.config.relay_url,
             &app_state.config.project_id,
-            jwt_token(&url, &app_state.webclient_keypair)?,
+            jwt_token(&url, &app_state.wsclient_keypair)?,
         )
         .await?;
 
@@ -64,7 +61,7 @@ impl WebsocketService {
 
     async fn reconnect(&mut self) -> Result<()> {
         let url = self.state.config.relay_url.clone();
-        let jwt = jwt_token(&url, &self.state.webclient_keypair)?;
+        let jwt = jwt_token(&url, &self.state.wsclient_keypair)?;
         self.client = wsclient::connect(&url, &self.state.config.project_id, jwt).await?;
         resubscribe(&self.state.database, &mut self.client).await?;
         Ok(())
@@ -93,7 +90,7 @@ impl WebsocketService {
                         message = self.client.recv().fuse() => {
                             match message {
                                 Ok(msg) => {
-                                    let msg_id = msg.id();
+                                    let msg_id = msg.id.clone();
                                     if let Err(e) = self.client.send_ack(msg_id).await {
                                         warn!("Failed responding to message: {} with err: {}", msg_id, e);
                                     };
@@ -102,8 +99,8 @@ impl WebsocketService {
                                     }
 
                                 },
-                                Err(_) => {
-                                    warn!("Client handler has finished, spawning new one");
+                                Err(e) => {
+                                    warn!("Client handler has finished ({}), spawning new one", e);
                                     self.reconnect().await?;
                                 }
                             }
@@ -166,35 +163,35 @@ async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<
     Ok(())
 }
 
-async fn handle_msg(msg: Payload, state: &Arc<AppState>, client: &mut WsClient) -> Result<()> {
-    info!("Websocket service received message: {:?}", msg);
-    if let Payload::Request(req) = msg {
-        if let Params::Subscription(params) = req.params {
-            match params.data.tag {
-                4004 => {
-                    let topic = params.data.topic.clone();
-                    info!("Received push delete for topic: {}", topic);
-                    push_delete::handle(params, state, client).await?;
-                    info!("Finished processing push delete for topic: {}", topic);
-                }
-                4006 => {
-                    let topic = params.data.topic.clone();
-                    info!("Received push subscribe on topic: {}", &topic);
-                    push_subscribe::handle(params, state, client).await?;
-                    info!("Finished processing push subscribe for topic: {}", topic);
-                }
-                4008 => {
-                    let topic = params.data.topic.clone();
-                    info!("Received push update on topic: {}", &topic);
-                    push_update::handle(params, state, client).await?;
-                    info!("Finished processing push update for topic: {}", topic);
-                }
-                _ => {
-                    info!("Ignored tag: {}", params.data.tag);
-                }
+async fn handle_msg(
+    req: walletconnect_sdk::rpc::rpc::Request,
+    state: &Arc<AppState>,
+    client: &mut WsClient,
+) -> Result<()> {
+    info!("Websocket service received message: {:?}", req);
+    if let Params::Subscription(params) = req.params {
+        match params.data.tag {
+            4004 => {
+                let topic = params.data.topic.clone();
+                info!("Received push delete for topic: {}", topic);
+                push_delete::handle(params, state, client).await?;
+                info!("Finished processing push delete for topic: {}", topic);
             }
-        } else {
-            info!("Ignored request: {:?}", req);
+            4006 => {
+                let topic = params.data.topic.clone();
+                info!("Received push subscribe on topic: {}", &topic);
+                push_subscribe::handle(params, state, client).await?;
+                info!("Finished processing push subscribe for topic: {}", topic);
+            }
+            4008 => {
+                let topic = params.data.topic.clone();
+                info!("Received push update on topic: {}", &topic);
+                push_update::handle(params, state, client).await?;
+                info!("Finished processing push update for topic: {}", topic);
+            }
+            _ => {
+                info!("Ignored tag: {}", params.data.tag);
+            }
         }
     }
     Ok(())

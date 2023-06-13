@@ -55,7 +55,13 @@ pub enum Error {
     WebSocket(#[from] tungstenite::Error),
 
     #[error(transparent)]
+    Broadcast(#[from] tokio::sync::broadcast::error::TryRecvError),
+
+    #[error(transparent)]
     FromUtf8Error(#[from] FromUtf8Error),
+
+    #[error(transparent)]
+    TokioTimeElapsed(#[from] tokio::time::error::Elapsed),
 
     #[error(transparent)]
     Base64Decode(#[from] base64::DecodeError),

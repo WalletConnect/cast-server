@@ -3248,6 +3248,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5996294f19bd3aae0453a862ad728f60e6600695733dd5df01da90c54363a3c"
 
 [[package]]
+name = "relay_client"
+version = "0.1.0"
+source = "git+https://github.com/WalletConnect/WalletConnectRust.git?rev=1fb0f78f28f69b3f3d4f20330f90c8d877185874#1fb0f78f28f69b3f3d4f20330f90c8d877185874"
+dependencies = [
+ "chrono",
+ "futures-channel",
+ "futures-util",
+ "pin-project",
+ "relay_rpc",
+ "serde",
+ "serde_json",
+ "serde_qs",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
 name = "relay_rpc"
 version = "0.1.0"
 source = "git+https://github.com/WalletConnect/WalletConnectRust.git?rev=1fb0f78f28f69b3f3d4f20330f90c8d877185874#1fb0f78f28f69b3f3d4f20330f90c8d877185874"
@@ -3605,6 +3626,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7f05c1d5476066defcdfacce1f52fc3cae3af1d3089727100c02ae92e5abbe0"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "serde_qs"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8cac3f1e2ca2fe333923a1ae72caca910b98ed0630bb35ef6f8c8517d6e81afa"
+dependencies = [
+ "percent-encoding",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -4087,6 +4119,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-tungstenite"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54319c93411147bced34cb5609a80e0a8e44c5999c93903a81cd866630ec0bfd"
+dependencies = [
+ "futures-util",
+ "log",
+ "native-tls",
+ "tokio",
+ "tokio-native-tls",
+ "tungstenite",
+]
+
+[[package]]
 name = "tokio-util"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4489,6 +4535,7 @@ name = "walletconnect_sdk"
 version = "0.1.0"
 source = "git+https://github.com/WalletConnect/WalletConnectRust.git?rev=1fb0f78f28f69b3f3d4f20330f90c8d877185874#1fb0f78f28f69b3f3d4f20330f90c8d877185874"
 dependencies = [
+ "relay_client",
  "relay_rpc",
 ]
 

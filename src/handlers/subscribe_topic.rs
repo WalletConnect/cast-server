@@ -68,7 +68,7 @@ pub async fn handler(
 
             info!("Subscribing to project topic: {}", &topic);
             state
-                .webclient_tx
+                .wsclient_tx
                 .send(websocket_service::WebsocketMessage::Register(
                     topic.to_string(),
                 ))

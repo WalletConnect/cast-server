@@ -19,7 +19,7 @@ use {
     walletconnect_sdk::rpc::{
         auth::ed25519_dalek::Keypair,
         domain::{ClientId, DecodedClientId},
-        rpc::{Params, Payload, Request, Subscription},
+        rpc::{Params, Request, Subscription},
     },
     x25519_dalek::{PublicKey, StaticSecret},
 };
@@ -69,6 +69,9 @@ PROJECT_ID to be set",
     let mut ws_client = wsclient::connect(&relay_url, &project_id, jwt)
         .await
         .unwrap();
+
+    let mut broadcast = ws_client.ack_broadcast.subscribe();
+
     let project_secret = uuid::Uuid::new_v4().to_string();
 
     let dapp_pubkey_response: serde_json::Value = http_client
@@ -130,128 +133,130 @@ PROJECT_ID to be set",
         .unwrap();
 
     ws_client.subscribe(&response_topic).await.unwrap();
-    let resp = {
-        ws_client.recv().await.unwrap();
-        ws_client.recv().await.unwrap();
-        ws_client.recv().await.unwrap()
-    };
-    if let crate::Payload::Request(Request {
+    let resp = ws_client.recv().await.unwrap();
+    let Request {
         params: Params::Subscription(Subscription { data, .. }),
         id,
         ..
-    }) = resp
-    {
-        ws_client.send_ack(id).await.unwrap();
+    } = resp else {
+        panic!("Expected subscription message")
+    };
 
-        let Envelope::<EnvelopeType0> { sealbox, iv, .. } = Envelope::<EnvelopeType0>::from_bytes(
-            base64::engine::general_purpose::STANDARD
-                .decode(data.message.as_bytes())
-                .unwrap(),
-        )
+    ws_client.send_ack(id).await.unwrap();
+
+    let Envelope::<EnvelopeType0> { sealbox, iv, .. } = Envelope::<EnvelopeType0>::from_bytes(
+        base64::engine::general_purpose::STANDARD
+            .decode(data.message.as_bytes())
+            .unwrap(),
+    )
+    .unwrap();
+
+    let decrypted_response = cipher
+        .decrypt(&iv.into(), chacha20poly1305::aead::Payload::from(&*sealbox))
         .unwrap();
 
-        let decrypted_response = cipher
+    let response: NotifyResponse<serde_json::Value> =
+        serde_json::from_slice(&decrypted_response).unwrap();
+
+    let pubkey = response.result.get("publicKey").unwrap().as_str().unwrap();
+
+    let notify_key = derive_key(pubkey.to_string(), hex::encode(secret.to_bytes()));
+    let notify_topic = sha256::digest(&*hex::decode(&notify_key).unwrap());
+
+    ws_client.subscribe(&notify_topic).await.unwrap();
+    let notification = Notification {
+        title: "string".to_owned(),
+        body: "string".to_owned(),
+        icon: "string".to_owned(),
+        url: "string".to_owned(),
+        r#type: "test".to_owned(),
+    };
+
+    let notify_body = json!({
+        "notification": notification,
+        "accounts": ["test_account"]
+    });
+
+    // wait for notify server to register the user
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    let res = http_client
+        .post(format!("{}/{}/notify", &cast_url, &project_id))
+        .json(&notify_body)
+        .send()
+        .await
+        .unwrap();
+
+    dbg!(res
+        .json::<cast_server::handlers::notify::Response>()
+        .await
+        .unwrap());
+
+    let Request {
+        params: Params::Subscription(Subscription { data, .. }),
+        ..
+    } = ws_client.recv().await.unwrap() else {
+        panic!("Expected subscription message")
+    };
+    let mut cipher =
+        ChaCha20Poly1305::new(GenericArray::from_slice(&hex::decode(notify_key).unwrap()));
+
+    let Envelope::<EnvelopeType0> { iv, sealbox, .. } = Envelope::<EnvelopeType0>::from_bytes(
+        base64::engine::general_purpose::STANDARD
+            .decode(data.message.as_bytes())
+            .unwrap(),
+    )
+    .unwrap();
+
+    let decrypted_notification: NotifyMessage<Notification> = serde_json::from_slice(
+        &cipher
             .decrypt(&iv.into(), chacha20poly1305::aead::Payload::from(&*sealbox))
-            .unwrap();
+            .unwrap(),
+    )
+    .unwrap();
 
-        let response: NotifyResponse<serde_json::Value> =
-            serde_json::from_slice(&decrypted_response).unwrap();
+    let received_notification = decrypted_notification.params;
 
-        let pubkey = response.result.get("publicKey").unwrap().as_str().unwrap();
+    assert_eq!(received_notification, notification);
 
-        let notify_key = derive_key(pubkey.to_string(), hex::encode(secret.to_bytes()));
-        let notify_topic = sha256::digest(&*hex::decode(&notify_key).unwrap());
+    let delete_params = json!({
+      "code": 400,
+      "message": "test"
+    });
 
-        ws_client.subscribe(&notify_topic).await.unwrap();
-        ws_client.recv().await.unwrap();
-        let notification = Notification {
-            title: "string".to_owned(),
-            body: "string".to_owned(),
-            icon: "string".to_owned(),
-            url: "string".to_owned(),
-            r#type: "test".to_owned(),
-        };
+    let delete_message = json! ({
+        "id": id,
+        "jsonrpc": "2.0",
+        "params": base64::engine::general_purpose::STANDARD.encode(delete_params.to_string().as_bytes())
+    });
 
-        let notify_body = json!({
-            "notification": notification,
-            "accounts": ["test_account"]
-        });
+    let envelope = Envelope::<EnvelopeType0>::new(&response_topic_key, delete_message).unwrap();
 
-        // wait for notify server to register the user
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    let encoded_message = base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
 
-        http_client
-            .post(format!("{}/{}/notify", &cast_url, &project_id))
-            .json(&notify_body)
-            .send()
-            .await
-            .unwrap();
+    ws_client
+        .publish_with_tag(&notify_topic, &encoded_message, 4004)
+        .await
+        .unwrap();
 
-        if let crate::Payload::Request(Request {
-            params: Params::Subscription(Subscription { data, .. }),
-            ..
-        }) = ws_client.recv().await.unwrap()
-        {
-            let mut cipher =
-                ChaCha20Poly1305::new(GenericArray::from_slice(&hex::decode(notify_key).unwrap()));
-
-            let Envelope::<EnvelopeType0> { iv, sealbox, .. } =
-                Envelope::<EnvelopeType0>::from_bytes(
-                    base64::engine::general_purpose::STANDARD
-                        .decode(data.message.as_bytes())
-                        .unwrap(),
-                )
-                .unwrap();
-
-            let decrypted_notification: NotifyMessage<Notification> = serde_json::from_slice(
-                &cipher
-                    .decrypt(&iv.into(), chacha20poly1305::aead::Payload::from(&*sealbox))
-                    .unwrap(),
-            )
-            .unwrap();
-
-            let received_notification = decrypted_notification.params;
-
-            assert_eq!(received_notification, notification);
-
-            let delete_params = json!({
-              "code": 400,
-              "message": "test"
-            });
-
-            let delete_message = json! ({
-                "id": id,
-                "jsonrpc": "2.0",
-                "params": base64::engine::general_purpose::STANDARD.encode(delete_params.to_string().as_bytes())
-            });
-
-            let envelope =
-                Envelope::<EnvelopeType0>::new(&response_topic_key, delete_message).unwrap();
-
-            let encoded_message =
-                base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
-
-            ws_client
-                .publish_with_tag(&notify_topic, &encoded_message, 4004)
-                .await
-                .unwrap();
-
-            // wait for notify server to unregister the user
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-            let resp = http_client
-                .post(format!("{}/{}/notify", &cast_url, &project_id))
-                .json(&notify_body)
-                .send()
-                .await
-                .unwrap();
-
-            let resp: cast_server::handlers::notify::Response = resp.json().await.unwrap();
-            assert_eq!(resp.not_found.len(), 1);
+    // wait for notify server to unregister the user
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    tokio::spawn(async move {
+        loop {
+            dbg!(broadcast.recv().await.unwrap());
         }
-    } else {
-        panic!("wrong response")
-    }
+    });
+
+    let resp = http_client
+        .post(format!("{}/{}/notify", &cast_url, &project_id))
+        .json(&notify_body)
+        .send()
+        .await
+        .unwrap();
+
+    let resp: cast_server::handlers::notify::Response = dbg!(resp.json().await.unwrap());
+
+    assert_eq!(resp.not_found.len(), 1);
 }
 
 fn derive_key(pubkey: String, privkey: String) -> String {
