@@ -1,0 +1,4 @@
+[build]
+rustflags = [
+    "-C", "linker=clang"
+]
