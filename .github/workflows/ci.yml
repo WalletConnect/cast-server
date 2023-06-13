@@ -89,7 +89,7 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Install lld
+      - name: Install lld and llvm
         run: sudo apt-get install -y lld llvm
 
       # TODO: Remove once https://crates.io/crates/opentelemetry-otlp is updated
