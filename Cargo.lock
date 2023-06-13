@@ -95,7 +95,7 @@ dependencies = [
  "chrono",
  "flatbuffers",
  "half",
- "hashbrown",
+ "hashbrown 0.12.3",
  "indexmap",
  "lazy_static",
  "lexical-core",
@@ -116,7 +116,7 @@ dependencies = [
  "arrow-schema",
  "chrono",
  "half",
- "hashbrown",
+ "hashbrown 0.12.3",
  "num",
 ]
 
@@ -933,8 +933,8 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-prometheus",
- "parquet",
- "parquet_derive",
+ "parquet 36.0.0",
+ "parquet_derive 36.0.0",
  "prometheus",
  "rand 0.7.3",
  "rand_core 0.5.1",
@@ -1287,7 +1287,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "907076dfda823b0b36d2a1bb5f90c96660a5bbcd7729e10727f07858f22c4edc"
 dependencies = [
  "cfg-if",
- "hashbrown",
+ "hashbrown 0.12.3",
  "lock_api",
  "once_cell",
  "parking_lot_core",
@@ -1743,8 +1743,8 @@ dependencies = [
  "bytes",
  "chrono",
  "maxminddb",
- "parquet",
- "parquet_derive",
+ "parquet 24.0.0",
+ "parquet_derive 24.0.0",
  "serde",
  "thiserror",
  "tokio",
@@ -1796,6 +1796,12 @@ name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
+
+[[package]]
+name = "hashbrown"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 
 [[package]]
 name = "heck"
@@ -2024,7 +2030,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
 dependencies = [
  "autocfg",
- "hashbrown",
+ "hashbrown 0.12.3",
 ]
 
 [[package]]
@@ -2777,6 +2783,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-float"
+version = "2.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7940cf2ca942593318d07fcf2596cdca60a85c9e7fab408a5e21a4f9dcd40d87"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "output_vt100"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2842,15 +2857,33 @@ dependencies = [
  "bytes",
  "chrono",
  "flate2",
- "hashbrown",
+ "hashbrown 0.12.3",
  "lz4",
  "num",
  "num-bigint",
  "rand 0.8.5",
  "seq-macro",
  "snap",
- "thrift",
+ "thrift 0.16.0",
  "zstd",
+]
+
+[[package]]
+name = "parquet"
+version = "36.0.0"
+source = "git+https://github.com/WalletConnect/arrow-rs.git?rev=4577a11#4577a110aa065711e9d6b11a6b088017975bb77f"
+dependencies = [
+ "ahash 0.8.3",
+ "bytes",
+ "chrono",
+ "flate2",
+ "hashbrown 0.13.2",
+ "num",
+ "num-bigint",
+ "paste",
+ "seq-macro",
+ "thrift 0.17.0",
+ "twox-hash",
 ]
 
 [[package]]
@@ -2858,11 +2891,28 @@ name = "parquet_derive"
 version = "24.0.0"
 source = "git+https://github.com/WalletConnect/arrow-rs.git?rev=431abf5#431abf5262e4c356a64dd28879cedaed7b8e3c9c"
 dependencies = [
- "parquet",
+ "parquet 24.0.0",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "parquet_derive"
+version = "36.0.0"
+source = "git+https://github.com/WalletConnect/arrow-rs.git?rev=4577a11#4577a110aa065711e9d6b11a6b088017975bb77f"
+dependencies = [
+ "parquet 36.0.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
+
+[[package]]
+name = "paste"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 
 [[package]]
 name = "pbkdf2"
@@ -3981,7 +4031,18 @@ checksum = "09678c4cdbb4eed72e18b7c2af1329c69825ed16fcbac62d083fc3e2b0590ff0"
 dependencies = [
  "byteorder",
  "integer-encoding",
- "ordered-float",
+ "ordered-float 1.1.1",
+]
+
+[[package]]
+name = "thrift"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e54bc85fc7faa8bc175c4bab5b92ba8d9a3ce893d0e9f42cc455c8ab16a9e09"
+dependencies = [
+ "byteorder",
+ "integer-encoding",
+ "ordered-float 2.10.0",
 ]
 
 [[package]]
@@ -4411,6 +4472,16 @@ dependencies = [
  "thiserror",
  "url",
  "utf-8",
+]
+
+[[package]]
+name = "twox-hash"
+version = "1.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
+dependencies = [
+ "cfg-if",
+ "static_assertions",
 ]
 
 [[package]]

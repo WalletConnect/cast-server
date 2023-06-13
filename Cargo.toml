@@ -90,3 +90,9 @@ test-context = "0.1"
 [build-dependencies]
 build-info-build = "0.0"
 
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "-C", "link-arg=fuse-ld=lld"
+]
+
