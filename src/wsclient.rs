@@ -145,8 +145,7 @@ impl WsClient {
         messages: Vec<(Topic, String)>,
         tag: u32,
     ) -> Result<HashSet<Topic>> {
-        info!("SEnding to relay ------------------------------------------------");
-        if messages.len() == 0 {
+        if messages.is_empty() {
             return Ok(HashSet::new());
         }
 
@@ -166,7 +165,7 @@ impl WsClient {
                 prompt: true,
             }));
 
-            mapping.insert(request.id.clone(), topic.clone());
+            mapping.insert(request.id, topic.clone());
             unacked.insert(request.id);
 
             info!("Sending to relay, want ack for {:?}", request.id);

@@ -123,7 +123,7 @@ pub async fn handler(
         .cloned()
         .collect::<HashSet<String>>();
 
-    if unacked.len() > 0 {
+    if !unacked.is_empty() {
         info!("Unacked messages: {:?} for request {}", unacked, uuid);
     }
 

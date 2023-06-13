@@ -90,7 +90,7 @@ impl WebsocketService {
                         message = self.client.recv().fuse() => {
                             match message {
                                 Ok(msg) => {
-                                    let msg_id = msg.id.clone();
+                                    let msg_id = msg.id;
                                     if let Err(e) = self.client.send_ack(msg_id).await {
                                         warn!("Failed responding to message: {} with err: {}", msg_id, e);
                                     };
