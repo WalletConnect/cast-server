@@ -95,7 +95,7 @@ pub async fn handler(
         let topic = sha256::digest(&*hex::decode(data.sym_key)?);
 
         info!(
-            "message to {}, on topic: {} with message_id: {}",
+            "Generated message to {}, on topic: {} with message_id: {}",
             data.id, &topic, id
         );
 
