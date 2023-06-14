@@ -67,7 +67,7 @@ pub enum Error {
     Base64Decode(#[from] base64::DecodeError),
 
     #[error(transparent)]
-    WalletConnectClient(#[from] walletconnect_sdk::client::Error),
+    WalletConnectClient(#[from] walletconnect_sdk::client::error::Error),
 
     #[error(transparent)]
     TryRecvError(#[from] tokio::sync::mpsc::error::TryRecvError),

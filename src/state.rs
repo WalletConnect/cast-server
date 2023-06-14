@@ -3,7 +3,6 @@ use {
         error::Result,
         metrics::Metrics,
         types::{ClientData, LookupEntry, WebhookInfo},
-        websocket_service::WebsocketMessage,
         Configuration,
     },
     build_info::BuildInfo,
@@ -22,8 +21,7 @@ pub struct AppState {
     pub metrics: Option<Metrics>,
     pub database: Arc<mongodb::Database>,
     pub keypair: Keypair,
-    pub wsclient_keypair: Keypair,
-    pub wsclient_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
+    pub wsclient: Arc<walletconnect_sdk::client::websocket::Client>,
 }
 
 build_info::build_info!(fn build_info);
@@ -33,8 +31,7 @@ impl AppState {
         config: Configuration,
         database: Arc<mongodb::Database>,
         keypair: Keypair,
-        wsclient_keypair: Keypair,
-        wsclient_tx: tokio::sync::mpsc::Sender<WebsocketMessage>,
+        wsclient: Arc<walletconnect_sdk::client::websocket::Client>,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 
@@ -44,8 +41,7 @@ impl AppState {
             metrics: None,
             database,
             keypair,
-            wsclient_keypair,
-            wsclient_tx,
+            wsclient,
         })
     }
 
@@ -87,10 +83,7 @@ impl AppState {
             )
             .await?;
 
-        self.wsclient_tx
-            .send(WebsocketMessage::Register(topic))
-            .await
-            .map_err(|_| crate::error::Error::ChannelClosed)?;
+        self.wsclient.subscribe(topic.into()).await?;
 
         self.notify_webhook(
             project_id,

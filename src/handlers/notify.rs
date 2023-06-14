@@ -1,6 +1,5 @@
 use {
     crate::{
-        auth::jwt_token,
         error,
         jsonrpc::{JsonRpcParams, JsonRpcPayload},
         state::AppState,
@@ -104,36 +103,30 @@ pub async fn handler(
 
         let topic = Topic::new(sha256::digest(&*hex::decode(client_data.sym_key)?).into());
 
-        mapping.insert(topic.clone(), client_data.id.clone());
-        messages.push((topic, base64_notification));
+        // state.wsclient.send(topic.clone(), base64_notification.clone()).await?;
+        // mapping.insert(topic.clone(), client_data.id.clone());
+        // messages.push((topic, base64_notification));
     }
 
-    let mut client = wsclient::connect(
-        &state.config.relay_url,
-        &state.config.project_id,
-        dbg!(jwt_token(&state.config.relay_url, &state.keypair))?,
-    )
-    .await?;
+    // let unacked = client
+    //     .batch_publish_with_tag(messages, 4002)
+    //     .await?
+    //     .into_iter()
+    //     .filter_map(|topic| mapping.get(&topic))
+    //     .cloned()
+    //     .collect::<HashSet<String>>();
 
-    let unacked = client
-        .batch_publish_with_tag(messages, 4002)
-        .await?
-        .into_iter()
-        .filter_map(|topic| mapping.get(&topic))
-        .cloned()
-        .collect::<HashSet<String>>();
+    // if !unacked.is_empty() {
+    //     info!("Unacked messages: {:?} for request {}", unacked, uuid);
+    // }
 
-    if !unacked.is_empty() {
-        info!("Unacked messages: {:?} for request {}", unacked, uuid);
-    }
-
-    for account in unacked {
-        confirmed_sends.remove(&account);
-        failed_sends.insert(SendFailure {
-            account,
-            reason: "Relay never acknowledged the message".into(),
-        });
-    }
+    // for account in unacked {
+    //     confirmed_sends.remove(&account);
+    //     failed_sends.insert(SendFailure {
+    //         account,
+    //         reason: "Relay never acknowledged the message".into(),
+    //     });
+    // }
 
     if let Some(metrics) = &state.metrics {
         let ctx = Context::current();

@@ -65,11 +65,16 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
     seed.reverse();
     let unregister_keypair = Keypair::generate(&mut seeded);
 
-    // Create a channel for the unregister service
-    let (webclient_tx, webclient_rx) = tokio::sync::mpsc::channel(100);
+    // Create a websocket client to communicate with relay
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+    let connection_handler = wsclient::RelayConnectionHandler::new("cast-client", tx);
+    let wsclient = Arc::new(walletconnect_sdk::client::websocket::Client::new(
+        connection_handler,
+    ));
 
     // Creating state
-    let mut state = AppState::new(config, db, keypair, unregister_keypair, webclient_tx)?;
+    let mut state = AppState::new(config, db, keypair, wsclient.clone())?;
 
     // Telemetry
     if state.config.telemetry_prometheus_port.is_some() {
@@ -147,7 +152,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
 
     // Start the websocket service
     info!("Starting websocket service");
-    let mut websocket_service = WebsocketService::new(state_arc, webclient_rx).await?;
+    let mut websocket_service = WebsocketService::new(state_arc, wsclient, rx).await?;
 
     select! {
         _ = axum::Server::bind(&private_addr).serve(private_app.into_make_service()) => info!("Terminating metrics service"),

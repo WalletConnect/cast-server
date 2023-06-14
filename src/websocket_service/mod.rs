@@ -1,22 +1,18 @@
 use {
     crate::{
-        auth::jwt_token,
-        handlers::subscribe_topic::ProjectData,
         log::{info, warn},
         state::AppState,
-        types::LookupEntry,
         websocket_service::handlers::{push_delete, push_subscribe, push_update},
-        wsclient::{self, create_connection_opts, WsClient},
+        wsclient::{self, create_connection_opts, RelayClientEvent},
         Result,
     },
-    futures::{channel::mpsc, executor, future, select, FutureExt, StreamExt},
-    log::debug,
-    mongodb::{bson::doc, Database},
+    futures::{channel::mpsc::UnboundedReceiver, FutureExt},
+    mongodb::bson::doc,
     serde::{Deserialize, Serialize},
     sha2::Sha256,
     std::sync::Arc,
     tokio::sync::mpsc::Receiver,
-    walletconnect_sdk::rpc::{domain::MessageId, rpc::Params},
+    walletconnect_sdk::rpc::domain::MessageId,
 };
 
 mod handlers;
@@ -28,37 +24,28 @@ pub struct RequestBody {
     pub params: String,
 }
 
-#[derive(Debug, Clone)]
-pub enum WebsocketMessage {
-    Register(String),
-}
-
 pub struct WebsocketService {
     state: Arc<AppState>,
-    client: walletconnect_sdk::client::Client,
+    wsclient: Arc<walletconnect_sdk::client::websocket::Client>,
     client_events: tokio::sync::mpsc::UnboundedReceiver<wsclient::RelayClientEvent>,
-    rxx: Receiver<WebsocketMessage>,
 }
 
 impl WebsocketService {
-    pub async fn new(app_state: Arc<AppState>, rxx: Receiver<WebsocketMessage>) -> Result<Self> {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-
-        let connection_handler = wsclient::RelayConnectionHandler::new("cast-client", tx);
-        let client = walletconnect_sdk::client::Client::new(connection_handler);
-
+    pub async fn new(
+        app_state: Arc<AppState>,
+        wsclient: Arc<walletconnect_sdk::client::websocket::Client>,
+        rx: tokio::sync::mpsc::UnboundedReceiver<RelayClientEvent>,
+    ) -> Result<Self> {
         Ok(Self {
-            // TODO: get rid of this
-            rxx,
             state: app_state,
             client_events: rx,
-            client,
+            wsclient,
         })
     }
 
     async fn reconnect(&mut self) -> Result<()> {
-        self.client
-            .connect(create_connection_opts(
+        self.wsclient
+            .connect(&create_connection_opts(
                 &self.state.config.relay_url,
                 &self.state.config.project_id,
                 &self.state.keypair,
@@ -71,97 +58,100 @@ impl WebsocketService {
 
     pub async fn run(&mut self) -> Result<()> {
         loop {
-            match self.client_events.try_recv()? {
-                wsclient::RelayClientEvent::Message(_) => todo!(),
+            // TODO: get rid of unwrap
+            match self.client_events.recv().await.unwrap() {
+                wsclient::RelayClientEvent::Message(msg) => {
+                    handle_msg(msg, &self.state, &self.wsclient).await?;
+                }
                 wsclient::RelayClientEvent::Error(e) => {
                     warn!("Received error from relay: {}", e);
                 }
                 wsclient::RelayClientEvent::Disconnected(_) => {
                     self.reconnect().await?;
                 }
-                wsclient::RelayClientEvent::Connected => todo!(),
+                wsclient::RelayClientEvent::Connected => {
+                    info!("Connected to relay");
+                }
             }
         }
     }
 }
 
-async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) -> Result<()> {
-    debug!("Resubscribing to all topics");
-    // Get all topics from db
-    let cursor = database
-        .collection::<LookupEntry>("lookup_table")
-        .find(None, None)
-        .await?;
+// async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) ->
+// Result<()> {     debug!("Resubscribing to all topics");
+//     // Get all topics from db
+//     let cursor = database
+//         .collection::<LookupEntry>("lookup_table")
+//         .find(None, None)
+//         .await?;
 
-    // Iterate over all topics and sub to them again using the _id field from each
-    // record
-    // Chunked into 500, as thats the max relay is allowing
-    cursor
-        .chunks(500)
-        .for_each(|chunk| {
-            let topics = chunk
-                .into_iter()
-                .filter_map(|x| x.ok())
-                .map(|x| x.topic)
-                .collect::<Vec<String>>();
-            if let Err(e) = executor::block_on(client.batch_subscribe(topics)) {
-                warn!("Error resubscribing to topics: {}", e);
-            }
-            future::ready(())
-        })
-        .await;
+//     // Iterate over all topics and sub to them again using the _id field from
+// each     // record
+//     // Chunked into 500, as thats the max relay is allowing
+//     cursor
+//         .chunks(500)
+//         .for_each(|chunk| {
+//             let topics = chunk
+//                 .into_iter()
+//                 .filter_map(|x| x.ok())
+//                 .map(|x| x.topic)
+//                 .collect::<Vec<String>>();
+//             if let Err(e) =
+// executor::block_on(client.batch_subscribe(topics)) {
+// warn!("Error resubscribing to topics: {}", e);             }
+//             future::ready(())
+//         })
+//         .await;
 
-    let cursor = database
-        .collection::<ProjectData>("project_data")
-        .find(None, None)
-        .await?;
+//     let cursor = database
+//         .collection::<ProjectData>("project_data")
+//         .find(None, None)
+//         .await?;
 
-    cursor
-        .chunks(500)
-        .for_each(|chunk| {
-            let topics = chunk
-                .into_iter()
-                .filter_map(|x| x.ok())
-                .map(|x| x.topic)
-                .collect::<Vec<String>>();
-            if let Err(e) = executor::block_on(client.batch_subscribe(topics)) {
-                warn!("Error resubscribing to topics: {}", e);
-            }
-            future::ready(())
-        })
-        .await;
-    Ok(())
-}
+//     cursor
+//         .chunks(500)
+//         .for_each(|chunk| {
+//             let topics = chunk
+//                 .into_iter()
+//                 .filter_map(|x| x.ok())
+//                 .map(|x| x.topic)
+//                 .collect::<Vec<String>>();
+//             if let Err(e) =
+// executor::block_on(client.batch_subscribe(topics)) {
+// warn!("Error resubscribing to topics: {}", e);             }
+//             future::ready(())
+//         })
+//         .await;
+//     Ok(())
+// }
 
 async fn handle_msg(
-    req: walletconnect_sdk::rpc::rpc::Request,
+    msg: walletconnect_sdk::client::websocket::PublishedMessage,
     state: &Arc<AppState>,
-    client: &mut WsClient,
+    client: &Arc<walletconnect_sdk::client::websocket::Client>,
 ) -> Result<()> {
-    info!("Websocket service received message: {:?}", req);
-    if let Params::Subscription(params) = req.params {
-        match params.data.tag {
-            4004 => {
-                let topic = params.data.topic.clone();
-                info!("Received push delete for topic: {}", topic);
-                push_delete::handle(params, state, client).await?;
-                info!("Finished processing push delete for topic: {}", topic);
-            }
-            4006 => {
-                let topic = params.data.topic.clone();
-                info!("Received push subscribe on topic: {}", &topic);
-                push_subscribe::handle(params, state, client).await?;
-                info!("Finished processing push subscribe for topic: {}", topic);
-            }
-            4008 => {
-                let topic = params.data.topic.clone();
-                info!("Received push update on topic: {}", &topic);
-                push_update::handle(params, state, client).await?;
-                info!("Finished processing push update for topic: {}", topic);
-            }
-            _ => {
-                info!("Ignored tag: {}", params.data.tag);
-            }
+    info!("Websocket service received message: {:?}", msg);
+    match msg.tag {
+        4004 => {
+            let topic = msg.topic.clone();
+            info!("Received push delete for topic: {}", topic);
+            push_delete::handle(msg, state, client).await?;
+            info!("Finished processing push delete for topic: {}", topic);
+        }
+        4006 => {
+            let topic = msg.topic.clone();
+            info!("Received push subscribe on topic: {}", &topic);
+            push_subscribe::handle(msg, state, client).await?;
+            info!("Finished processing push subscribe for topic: {}", topic);
+        }
+        4008 => {
+            let topic = msg.topic.clone();
+            info!("Received push update on topic: {}", &topic);
+            push_update::handle(msg, state, client).await?;
+            info!("Finished processing push update for topic: {}", topic);
+        }
+        _ => {
+            info!("Ignored tag: {}", msg.tag);
         }
     }
     Ok(())

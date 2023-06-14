@@ -4,29 +4,24 @@ use {
     chrono::{DateTime, Utc},
     serde::{Deserialize, Serialize},
     walletconnect_sdk::rpc::{
-        auth::{
-            cacao::Cacao,
-            ed25519_dalek::Keypair,
-            AuthToken,
-            DID_DELIMITER,
-            DID_METHOD,
-            DID_PREFIX,
-            JWT_HEADER_ALG,
-        },
-        domain::{ClientId, DecodedClientId},
+        auth::did::{DID_DELIMITER, DID_METHOD_KEY, DID_PREFIX},
+        domain::DecodedClientId,
+        jwt::JWT_HEADER_ALG,
     },
 };
 
-pub fn jwt_token(url: &str, keypair: &Keypair) -> Result<String> {
-    let decoded_client_id = DecodedClientId(*keypair.public_key().as_bytes());
-    let client_id = ClientId::from(decoded_client_id);
+// TODO: delete
+// pub fn jwt_token(url: &str, keypair: &Keypair) -> Result<String> {
+//     let decoded_client_id =
+// DecodedClientId(*keypair.public_key().as_bytes());     let client_id =
+// ClientId::from(decoded_client_id);
 
-    AuthToken::new(client_id.value().clone())
-        .aud(url)
-        .as_jwt(keypair)
-        .map(|x| x.to_string())
-        .map_err(|e| e.into())
-}
+//     AuthToken::new(client_id.value().clone())
+//         .aud(url)
+//         .as_jwt(keypair)
+//         .map(|x| x.to_string())
+//         .map_err(|e| e.into())
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionAuth {
@@ -105,7 +100,7 @@ impl SubscriptionAuth {
             .ok_or(AuthError::IssuerPrefix)?
             .strip_prefix(DID_DELIMITER)
             .ok_or(AuthError::IssuerFormat)?
-            .strip_prefix(DID_METHOD)
+            .strip_prefix(DID_METHOD_KEY)
             .ok_or(AuthError::IssuerMethod)?
             .strip_prefix(DID_DELIMITER)
             .ok_or(AuthError::IssuerFormat)?;
@@ -209,5 +204,5 @@ struct KeyServerResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CacaoValue {
-    cacao: Cacao,
+    cacao: walletconnect_sdk::rpc::auth::cacao::Cacao,
 }
