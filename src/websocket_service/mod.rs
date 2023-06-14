@@ -43,7 +43,7 @@ impl WebsocketService {
         })
     }
 
-    async fn reconnect(&mut self) -> Result<()> {
+    async fn connect(&mut self) -> Result<()> {
         self.wsclient
             .connect(&create_connection_opts(
                 &self.state.config.relay_url,
@@ -57,6 +57,7 @@ impl WebsocketService {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        self.connect().await?;
         loop {
             // TODO: get rid of unwrap
             match self.client_events.recv().await.unwrap() {
@@ -67,7 +68,7 @@ impl WebsocketService {
                     warn!("Received error from relay: {}", e);
                 }
                 wsclient::RelayClientEvent::Disconnected(_) => {
-                    self.reconnect().await?;
+                    self.connect().await?;
                 }
                 wsclient::RelayClientEvent::Connected => {
                     info!("Connected to relay");

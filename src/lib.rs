@@ -63,7 +63,6 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
 
     let keypair = Keypair::generate(&mut seeded);
     seed.reverse();
-    let unregister_keypair = Keypair::generate(&mut seeded);
 
     // Create a websocket client to communicate with relay
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
@@ -158,7 +157,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
         _ = axum::Server::bind(&private_addr).serve(private_app.into_make_service()) => info!("Terminating metrics service"),
         _ = axum::Server::bind(&addr).serve(app.into_make_service_with_connect_info::<SocketAddr>()) => info!("Server terminating"),
         _ = shutdown.recv() => info!("Shutdown signal received, killing servers"),
-        _ = websocket_service.run() => info!("Unregister service terminating"),
+        e = websocket_service.run() => info!("Unregister service terminating {:?}", e),
     }
 
     Ok(())
