@@ -26,11 +26,6 @@ pub async fn handle(
     state: &Arc<AppState>,
     client: &Arc<walletconnect_sdk::client::websocket::Client>,
 ) -> Result<()> {
-    // let Subscription {
-    //     data: SubscriptionData { message, topic, .. },
-    //     ..
-    // } = params;
-
     let topic = msg.topic.to_string();
 
     // Grab record from db

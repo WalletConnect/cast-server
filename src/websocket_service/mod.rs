@@ -6,12 +6,10 @@ use {
         wsclient::{self, create_connection_opts, RelayClientEvent},
         Result,
     },
-    futures::{channel::mpsc::UnboundedReceiver, FutureExt},
     mongodb::bson::doc,
     serde::{Deserialize, Serialize},
     sha2::Sha256,
     std::sync::Arc,
-    tokio::sync::mpsc::Receiver,
     walletconnect_sdk::rpc::domain::MessageId,
 };
 
@@ -82,54 +80,6 @@ impl WebsocketService {
         }
     }
 }
-
-// async fn resubscribe(database: &Arc<Database>, client: &mut WsClient) ->
-// Result<()> {     debug!("Resubscribing to all topics");
-//     // Get all topics from db
-//     let cursor = database
-//         .collection::<LookupEntry>("lookup_table")
-//         .find(None, None)
-//         .await?;
-
-//     // Iterate over all topics and sub to them again using the _id field from
-// each     // record
-//     // Chunked into 500, as thats the max relay is allowing
-//     cursor
-//         .chunks(500)
-//         .for_each(|chunk| {
-//             let topics = chunk
-//                 .into_iter()
-//                 .filter_map(|x| x.ok())
-//                 .map(|x| x.topic)
-//                 .collect::<Vec<String>>();
-//             if let Err(e) =
-// executor::block_on(client.batch_subscribe(topics)) {
-// warn!("Error resubscribing to topics: {}", e);             }
-//             future::ready(())
-//         })
-//         .await;
-
-//     let cursor = database
-//         .collection::<ProjectData>("project_data")
-//         .find(None, None)
-//         .await?;
-
-//     cursor
-//         .chunks(500)
-//         .for_each(|chunk| {
-//             let topics = chunk
-//                 .into_iter()
-//                 .filter_map(|x| x.ok())
-//                 .map(|x| x.topic)
-//                 .collect::<Vec<String>>();
-//             if let Err(e) =
-// executor::block_on(client.batch_subscribe(topics)) {
-// warn!("Error resubscribing to topics: {}", e);             }
-//             future::ready(())
-//         })
-//         .await;
-//     Ok(())
-// }
 
 async fn handle_msg(
     msg: walletconnect_sdk::client::websocket::PublishedMessage,

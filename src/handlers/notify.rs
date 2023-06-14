@@ -4,7 +4,6 @@ use {
         jsonrpc::{JsonRpcParams, JsonRpcPayload},
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0, Notification},
-        wsclient,
     },
     axum::{
         extract::{ConnectInfo, Path, State},
@@ -16,12 +15,7 @@ use {
     mongodb::bson::doc,
     opentelemetry::{Context, KeyValue},
     serde::{Deserialize, Serialize},
-    std::{
-        collections::{HashMap, HashSet},
-        net::SocketAddr,
-        sync::Arc,
-        time::Duration,
-    },
+    std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration},
     tokio_stream::StreamExt,
     tracing::info,
     walletconnect_sdk::rpc::domain::Topic,
@@ -81,9 +75,6 @@ pub async fn handler(
         params: JsonRpcParams::Push(notification.clone()),
     };
 
-    let mut messages: Vec<(Topic, String)> = vec![];
-    let mut mapping: HashMap<Topic, String> = HashMap::new();
-
     while let Some(client_data) = cursor.try_next().await? {
         not_found.remove(&client_data.id);
 
@@ -113,29 +104,7 @@ pub async fn handler(
                 Duration::from_secs(86400),
             )
             .await?;
-        // mapping.insert(topic.clone(), client_data.id.clone());
-        // messages.push((topic, base64_notification));
     }
-
-    // let unacked = client
-    //     .batch_publish_with_tag(messages, 4002)
-    //     .await?
-    //     .into_iter()
-    //     .filter_map(|topic| mapping.get(&topic))
-    //     .cloned()
-    //     .collect::<HashSet<String>>();
-
-    // if !unacked.is_empty() {
-    //     info!("Unacked messages: {:?} for request {}", unacked, uuid);
-    // }
-
-    // for account in unacked {
-    //     confirmed_sends.remove(&account);
-    //     failed_sends.insert(SendFailure {
-    //         account,
-    //         reason: "Relay never acknowledged the message".into(),
-    //     });
-    // }
 
     if let Some(metrics) = &state.metrics {
         let ctx = Context::current();

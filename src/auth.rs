@@ -10,19 +10,6 @@ use {
     },
 };
 
-// TODO: delete
-// pub fn jwt_token(url: &str, keypair: &Keypair) -> Result<String> {
-//     let decoded_client_id =
-// DecodedClientId(*keypair.public_key().as_bytes());     let client_id =
-// ClientId::from(decoded_client_id);
-
-//     AuthToken::new(client_id.value().clone())
-//         .aud(url)
-//         .as_jwt(keypair)
-//         .map(|x| x.to_string())
-//         .map_err(|e| e.into())
-// }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionAuth {
     /// iat - timestamp when jwt was issued
