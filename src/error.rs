@@ -66,6 +66,12 @@ pub enum Error {
     #[error(transparent)]
     Base64Decode(#[from] base64::DecodeError),
 
+    #[error(transparent)]
+    WalletConnectClient(#[from] walletconnect_sdk::client::Error),
+
+    #[error(transparent)]
+    TryRecvError(#[from] tokio::sync::mpsc::error::TryRecvError),
+
     #[error("No project found associated with topic {0}")]
     NoProjectDataForTopic(String),
 

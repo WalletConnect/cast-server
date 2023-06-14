@@ -6,10 +6,10 @@ use {
         state::AppState,
         types::LookupEntry,
         websocket_service::handlers::{push_delete, push_subscribe, push_update},
-        wsclient::{self, WsClient},
+        wsclient::{self, create_connection_opts, WsClient},
         Result,
     },
-    futures::{executor, future, select, FutureExt, StreamExt},
+    futures::{channel::mpsc, executor, future, select, FutureExt, StreamExt},
     log::debug,
     mongodb::{bson::doc, Database},
     serde::{Deserialize, Serialize},
@@ -35,81 +35,51 @@ pub enum WebsocketMessage {
 
 pub struct WebsocketService {
     state: Arc<AppState>,
-    client: WsClient,
-    rx: Receiver<WebsocketMessage>,
+    client: walletconnect_sdk::client::Client,
+    client_events: tokio::sync::mpsc::UnboundedReceiver<wsclient::RelayClientEvent>,
+    rxx: Receiver<WebsocketMessage>,
 }
 
 impl WebsocketService {
-    pub async fn new(app_state: Arc<AppState>, rx: Receiver<WebsocketMessage>) -> Result<Self> {
-        let url = app_state.config.relay_url.clone();
+    pub async fn new(app_state: Arc<AppState>, rxx: Receiver<WebsocketMessage>) -> Result<Self> {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-        let mut client = wsclient::connect(
-            &app_state.config.relay_url,
-            &app_state.config.project_id,
-            jwt_token(&url, &app_state.wsclient_keypair)?,
-        )
-        .await?;
-
-        resubscribe(&app_state.database, &mut client).await?;
+        let connection_handler = wsclient::RelayConnectionHandler::new("cast-client", tx);
+        let client = walletconnect_sdk::client::Client::new(connection_handler);
 
         Ok(Self {
-            rx,
+            // TODO: get rid of this
+            rxx,
             state: app_state,
+            client_events: rx,
             client,
         })
     }
 
     async fn reconnect(&mut self) -> Result<()> {
-        let url = self.state.config.relay_url.clone();
-        let jwt = jwt_token(&url, &self.state.wsclient_keypair)?;
-        self.client = wsclient::connect(&url, &self.state.config.project_id, jwt).await?;
-        resubscribe(&self.state.database, &mut self.client).await?;
+        self.client
+            .connect(create_connection_opts(
+                &self.state.config.relay_url,
+                &self.state.config.project_id,
+                &self.state.keypair,
+                // TODO: use proper cast url
+                "https://cast.walletconnect.com",
+            )?)
+            .await?;
         Ok(())
     }
 
     pub async fn run(&mut self) -> Result<()> {
         loop {
-            match self.client.handler.is_finished() {
-                true => {
-                    warn!("Client handler has finished, spawning new one");
+            match self.client_events.try_recv()? {
+                wsclient::RelayClientEvent::Message(_) => todo!(),
+                wsclient::RelayClientEvent::Error(e) => {
+                    warn!("Received error from relay: {}", e);
+                }
+                wsclient::RelayClientEvent::Disconnected(_) => {
                     self.reconnect().await?;
                 }
-                false => {
-                    select! {
-
-                    msg =  self.rx.recv().fuse() => {
-                        if let Some(msg) = msg {
-                            let WebsocketMessage::Register(topic) = msg;
-                                info!("Subscribing to topic: {}", topic);
-                                if let Err(e) = self.client.subscribe(&topic).await {
-                                    warn!("Error subscribing to topic: {}", e);
-                                }
-                          }
-                    }
-                        ,
-                        message = self.client.recv().fuse() => {
-                            match message {
-                                Ok(msg) => {
-                                    let msg_id = msg.id;
-                                    if let Err(e) = self.client.send_ack(msg_id).await {
-                                        warn!("Failed responding to message: {} with err: {}", msg_id, e);
-                                    };
-                                    if let Err(e) = handle_msg(msg, &self.state, &mut self.client).await {
-                                        warn!("Error handling message: {}", e);
-                                    }
-
-                                },
-                                Err(e) => {
-                                    warn!("Client handler has finished ({}), spawning new one", e);
-                                    self.reconnect().await?;
-                                }
-                            }
-
-
-
-                        }
-                    };
-                }
+                wsclient::RelayClientEvent::Connected => todo!(),
             }
         }
     }
