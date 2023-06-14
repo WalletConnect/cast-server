@@ -62,13 +62,18 @@ impl WebsocketService {
             // TODO: get rid of unwrap
             match self.client_events.recv().await.unwrap() {
                 wsclient::RelayClientEvent::Message(msg) => {
-                    handle_msg(msg, &self.state, &self.wsclient).await?;
+                    if let Err(e) = handle_msg(msg, &self.state, &self.wsclient).await {
+                        warn!("Error handling message: {}", e);
+                    }
                 }
                 wsclient::RelayClientEvent::Error(e) => {
                     warn!("Received error from relay: {}", e);
                 }
                 wsclient::RelayClientEvent::Disconnected(_) => {
-                    self.connect().await?;
+                    while let Err(e) = self.connect().await {
+                        warn!("Error reconnecting to relay: {}", e);
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    }
                 }
                 wsclient::RelayClientEvent::Connected => {
                     info!("Connected to relay");
