@@ -20,6 +20,7 @@ use {
         collections::{HashMap, HashSet},
         net::SocketAddr,
         sync::Arc,
+        time::Duration,
     },
     tokio_stream::StreamExt,
     tracing::info,
@@ -103,7 +104,15 @@ pub async fn handler(
 
         let topic = Topic::new(sha256::digest(&*hex::decode(client_data.sym_key)?).into());
 
-        // state.wsclient.send(topic.clone(), base64_notification.clone()).await?;
+        state
+            .wsclient
+            .publish(
+                topic.into(),
+                base64_notification.clone(),
+                4002,
+                Duration::from_secs(86400),
+            )
+            .await?;
         // mapping.insert(topic.clone(), client_data.id.clone());
         // messages.push((topic, base64_notification));
     }
