@@ -99,8 +99,7 @@ pub fn create_connection_opts(
         },
         sdk: relay_rpc::user_agent::Sdk {
             language: relay_rpc::user_agent::SdkLanguage::Rust,
-            // TODO: proper version
-            version: "1.0".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
         },
         os: relay_rpc::user_agent::OsInfo {
             os_family: "ECS".into(),
