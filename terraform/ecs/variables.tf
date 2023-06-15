@@ -93,7 +93,3 @@ variable "project_id" {
 variable "relay_url" {
   type = string
 }
-
-variable "cast_url" {
-  type = string
-}
