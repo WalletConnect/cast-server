@@ -5,6 +5,7 @@ use {
     tokio::sync::mpsc,
     tracing::{info, warn},
     tungstenite::protocol::CloseFrame,
+    url::Url,
     walletconnect_sdk::{
         client::{websocket::ConnectionHandler, ConnectionOptions},
         rpc::{
@@ -19,6 +20,7 @@ pub struct RelayConnectionHandler {
     tx: mpsc::UnboundedSender<RelayClientEvent>,
 }
 
+#[derive(Debug)]
 pub enum RelayClientEvent {
     Message(walletconnect_sdk::client::websocket::PublishedMessage),
     Error(walletconnect_sdk::client::error::Error),
@@ -119,6 +121,10 @@ pub fn create_connection_opts(
     };
     let user_agent = walletconnect_sdk::rpc::user_agent::UserAgent::ValidUserAgent(ua);
 
-    let opts = ConnectionOptions::new(project_id, auth).with_user_agent(user_agent);
+    let url = Url::parse(relay_url)?;
+
+    let opts = ConnectionOptions::new(project_id, auth)
+        .with_user_agent(user_agent)
+        .with_address(url);
     Ok(opts)
 }

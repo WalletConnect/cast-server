@@ -12,6 +12,9 @@ use {
         Json,
     },
     base64::Engine,
+    error::Result,
+    futures::FutureExt,
+    log::warn,
     mongodb::bson::doc,
     opentelemetry::{Context, KeyValue},
     serde::{Deserialize, Serialize},
@@ -33,6 +36,12 @@ pub struct SendFailure {
     pub reason: String,
 }
 
+struct PublisJob {
+    account: String,
+    topic: Topic,
+    message: String,
+}
+
 // Change String to Account
 // Change String to Error
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,27 +56,97 @@ pub async fn handler(
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
     Json(cast_args): Json<NotifyBody>,
-) -> Result<axum::response::Response, error::Error> {
+) -> Result<axum::response::Response> {
     // Request id for logs
-    let uuid = uuid::Uuid::new_v4().to_string();
-
+    let uuid = uuid::Uuid::new_v4();
     let timer = std::time::Instant::now();
-    let db = state.database.clone();
+
+    let mut response = Response {
+        sent: HashSet::new(),
+        failed: HashSet::new(),
+        not_found: HashSet::new(),
+    };
+
     let NotifyBody {
         notification,
         accounts,
     } = cast_args;
-    let mut confirmed_sends = HashSet::new();
-    let mut failed_sends: HashSet<SendFailure> = HashSet::new();
 
-    let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
-
-    let mut cursor = db
+    let cursor = state
+        .database
         .collection::<ClientData>(&project_id)
         .find(doc! { "_id": {"$in": &accounts}}, None)
         .await?;
 
-    let mut not_found: HashSet<String> = accounts.into_iter().collect();
+    let jobs = generate_publish_jobs(notification, cursor, &mut response).await?;
+
+    process_publish_jobs(jobs, state.wsclient.clone(), &mut response, uuid).await?;
+
+    info!(
+        "Response: {:?} for notify from project: {} for request: {}",
+        response, project_id, uuid
+    );
+
+    if let Some(metrics) = &state.metrics {
+        send_metrics(metrics, &response, project_id, timer);
+    }
+
+    Ok((StatusCode::OK, Json(response)).into_response())
+}
+
+const NOTIFY_TIMEOUT: u64 = 45;
+
+async fn process_publish_jobs(
+    jobs: Vec<PublisJob>,
+    client: Arc<walletconnect_sdk::client::websocket::Client>,
+    response: &mut Response,
+    request_id: uuid::Uuid,
+) -> Result<()> {
+    let timer = std::time::Instant::now();
+    let futures = jobs.into_iter().map(|job| {
+        let remaining_time = timer.elapsed();
+        let timeout_duration = Duration::from_secs(NOTIFY_TIMEOUT) - remaining_time;
+        tokio::time::timeout(
+            timeout_duration,
+            client.publish(job.topic, job.message, 4002, Duration::from_secs(86400)),
+        )
+        .map(|result| match result {
+            Ok(_) => Ok(job.account),
+            Err(e) => Err((e, job.account)),
+        })
+    });
+
+    let results = futures::future::join_all(futures).await;
+
+    for result in results {
+        match result {
+            Ok(account) => {
+                response.sent.insert(account.to_string());
+            }
+            Err(e) => {
+                warn!(
+                    "Error sending notification: {} for {} during {}",
+                    e.0, e.1, request_id
+                );
+                response.failed.insert(SendFailure {
+                    account: e.1.to_string(),
+                    reason: "Timed out while waiting for acknowledgement".into(),
+                });
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn generate_publish_jobs(
+    notification: Notification,
+    mut cursor: mongodb::Cursor<ClientData>,
+    response: &mut Response,
+) -> Result<Vec<PublisJob>> {
+    let mut jobs = vec![];
+
+    let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
 
     let message = JsonRpcPayload {
         id,
@@ -76,17 +155,15 @@ pub async fn handler(
     };
 
     while let Some(client_data) = cursor.try_next().await? {
-        not_found.remove(&client_data.id);
+        response.not_found.remove(&client_data.id);
 
         if !client_data.scope.contains(&notification.r#type) {
-            failed_sends.insert(SendFailure {
+            response.failed.insert(SendFailure {
                 account: client_data.id.clone(),
                 reason: "Client is not subscribed to this topic".into(),
             });
             continue;
         }
-
-        confirmed_sends.insert(client_data.id.clone());
 
         let envelope = Envelope::<EnvelopeType0>::new(&client_data.sym_key, &message)?;
 
@@ -95,58 +172,46 @@ pub async fn handler(
 
         let topic = Topic::new(sha256::digest(&*hex::decode(client_data.sym_key)?).into());
 
-        state
-            .wsclient
-            .publish(
-                topic.into(),
-                base64_notification.clone(),
-                4002,
-                Duration::from_secs(86400),
-            )
-            .await?;
+        jobs.push(PublisJob {
+            topic,
+            message: base64_notification,
+            account: client_data.id,
+        })
     }
+    Ok(jobs)
+}
 
-    if let Some(metrics) = &state.metrics {
-        let ctx = Context::current();
-        metrics
-            .dispatched_notifications
-            .add(&ctx, confirmed_sends.len() as u64, &[
-                KeyValue::new("type", "sent"),
-                KeyValue::new("project_id", project_id.clone()),
-            ]);
+fn send_metrics(
+    metrics: &crate::metrics::Metrics,
+    response: &Response,
+    project_id: String,
+    timer: std::time::Instant,
+) {
+    let ctx = Context::current();
+    metrics
+        .dispatched_notifications
+        .add(&ctx, response.sent.len() as u64, &[
+            KeyValue::new("type", "sent"),
+            KeyValue::new("project_id", project_id.clone()),
+        ]);
 
-        metrics
-            .dispatched_notifications
-            .add(&ctx, failed_sends.len() as u64, &[
-                KeyValue::new("type", "failed"),
-                KeyValue::new("project_id", project_id.clone()),
-            ]);
+    metrics
+        .dispatched_notifications
+        .add(&ctx, response.failed.len() as u64, &[
+            KeyValue::new("type", "failed"),
+            KeyValue::new("project_id", project_id.clone()),
+        ]);
 
-        metrics
-            .dispatched_notifications
-            .add(&ctx, not_found.len() as u64, &[
-                KeyValue::new("type", "not_found"),
-                KeyValue::new("project_id", project_id.clone()),
-            ]);
+    metrics
+        .dispatched_notifications
+        .add(&ctx, response.not_found.len() as u64, &[
+            KeyValue::new("type", "not_found"),
+            KeyValue::new("project_id", project_id.clone()),
+        ]);
 
-        metrics
-            .send_latency
-            .record(&ctx, timer.elapsed().as_millis().try_into().unwrap(), &[
-                KeyValue::new("project_id", project_id.clone()),
-            ])
-    }
-
-    // Get them into one struct and serialize as json
-    let response = Response {
-        sent: confirmed_sends,
-        failed: failed_sends,
-        not_found,
-    };
-
-    info!(
-        "Response: {:?} for notify from project: {} for request: {}",
-        response, project_id, uuid
-    );
-
-    Ok((StatusCode::OK, Json(response)).into_response())
+    metrics
+        .send_latency
+        .record(&ctx, timer.elapsed().as_millis().try_into().unwrap(), &[
+            KeyValue::new("project_id", project_id.clone()),
+        ])
 }
