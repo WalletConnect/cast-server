@@ -42,8 +42,6 @@ fn urls(env: String) -> (String, String) {
         ),
         "LOCAL" => (
             "http://127.0.0.1:3000".to_owned(),
-            // "ws://127.0.0.1:8080".to_owned(),
-            // TODO
             "wss://staging.relay.walletconnect.com".to_owned(),
         ),
         _ => panic!("Invalid environment"),

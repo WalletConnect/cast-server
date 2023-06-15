@@ -47,8 +47,7 @@ impl WebsocketService {
                 &self.state.config.relay_url,
                 &self.state.config.project_id,
                 &self.state.keypair,
-                // TODO: use proper cast url
-                "https://cast.walletconnect.com",
+                &self.state.config.cast_url,
             )?)
             .await?;
         Ok(())

@@ -36,7 +36,7 @@ pub struct SendFailure {
     pub reason: String,
 }
 
-struct PublisJob {
+struct PublishJob {
     account: String,
     topic: Topic,
     message: String,
@@ -107,7 +107,7 @@ pub async fn handler(
 const NOTIFY_TIMEOUT: u64 = 45;
 
 async fn process_publish_jobs(
-    jobs: Vec<PublisJob>,
+    jobs: Vec<PublishJob>,
     client: Arc<relay_client::websocket::Client>,
     response: &mut Response,
     request_id: uuid::Uuid,
@@ -153,7 +153,7 @@ async fn generate_publish_jobs(
     notification: Notification,
     mut cursor: mongodb::Cursor<ClientData>,
     response: &mut Response,
-) -> Result<Vec<PublisJob>> {
+) -> Result<Vec<PublishJob>> {
     let mut jobs = vec![];
 
     let id = chrono::Utc::now().timestamp_millis().unsigned_abs();
@@ -182,7 +182,7 @@ async fn generate_publish_jobs(
 
         let topic = Topic::new(sha256::digest(&*hex::decode(client_data.sym_key)?).into());
 
-        jobs.push(PublisJob {
+        jobs.push(PublishJob {
             topic,
             message: base64_notification,
             account: client_data.id,
