@@ -50,8 +50,8 @@ on:
       cast_url:
         description: "the URL of the cast server"
         required: true
-          type: string
-          default: https://staging.cast.walletconnect.com
+        type: string
+        default: https://staging.cast.walletconnect.com
       version:
         description: "the release version"
         required: true
