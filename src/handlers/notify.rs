@@ -17,11 +17,11 @@ use {
     log::warn,
     mongodb::bson::doc,
     opentelemetry::{Context, KeyValue},
+    relay_rpc::domain::Topic,
     serde::{Deserialize, Serialize},
     std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration},
     tokio_stream::StreamExt,
     tracing::info,
-    walletconnect_sdk::rpc::domain::Topic,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -108,7 +108,7 @@ const NOTIFY_TIMEOUT: u64 = 45;
 
 async fn process_publish_jobs(
     jobs: Vec<PublisJob>,
-    client: Arc<walletconnect_sdk::client::websocket::Client>,
+    client: Arc<relay_client::websocket::Client>,
     response: &mut Response,
     request_id: uuid::Uuid,
 ) -> Result<()> {

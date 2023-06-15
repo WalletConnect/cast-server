@@ -1,18 +1,16 @@
-pub use walletconnect_sdk::rpc::domain::MessageId;
+pub use relay_rpc::domain::MessageId;
 use {
     crate::error::Result,
+    relay_client::{websocket::ConnectionHandler, ConnectionOptions},
+    relay_rpc::{
+        auth::{ed25519_dalek::Keypair, AuthToken},
+        user_agent::ValidUserAgent,
+    },
     std::time::Duration,
     tokio::sync::mpsc,
     tracing::{info, warn},
     tungstenite::protocol::CloseFrame,
     url::Url,
-    walletconnect_sdk::{
-        client::{websocket::ConnectionHandler, ConnectionOptions},
-        rpc::{
-            auth::{ed25519_dalek::Keypair, AuthToken},
-            user_agent::ValidUserAgent,
-        },
-    },
 };
 
 pub struct RelayConnectionHandler {
@@ -22,8 +20,8 @@ pub struct RelayConnectionHandler {
 
 #[derive(Debug)]
 pub enum RelayClientEvent {
-    Message(walletconnect_sdk::client::websocket::PublishedMessage),
-    Error(walletconnect_sdk::client::error::Error),
+    Message(relay_client::websocket::PublishedMessage),
+    Error(relay_client::error::Error),
     Disconnected(Option<CloseFrame<'static>>),
     Connected,
 }
@@ -52,10 +50,7 @@ impl ConnectionHandler for RelayConnectionHandler {
         }
     }
 
-    fn message_received(
-        &mut self,
-        message: walletconnect_sdk::client::websocket::PublishedMessage,
-    ) {
+    fn message_received(&mut self, message: relay_client::websocket::PublishedMessage) {
         info!(
             "[{}] inbound message: topic={} message={}",
             self.name, message.topic, message.message
@@ -65,7 +60,7 @@ impl ConnectionHandler for RelayConnectionHandler {
         }
     }
 
-    fn inbound_error(&mut self, error: walletconnect_sdk::client::error::Error) {
+    fn inbound_error(&mut self, error: relay_client::error::Error) {
         info!("[{}] inbound error: {error}", self.name);
         if let Err(e) = self.tx.send(RelayClientEvent::Error(error)) {
             warn!(
@@ -75,7 +70,7 @@ impl ConnectionHandler for RelayConnectionHandler {
         }
     }
 
-    fn outbound_error(&mut self, error: walletconnect_sdk::client::error::Error) {
+    fn outbound_error(&mut self, error: relay_client::error::Error) {
         info!("[{}] outbound error: {error}", self.name);
         if let Err(e) = self.tx.send(RelayClientEvent::Error(error)) {
             warn!(
@@ -98,28 +93,26 @@ pub fn create_connection_opts(
         .as_jwt(&keypair)?;
 
     let ua = ValidUserAgent {
-        protocol: walletconnect_sdk::rpc::user_agent::Protocol {
-            kind: walletconnect_sdk::rpc::user_agent::ProtocolKind::WalletConnect,
+        protocol: relay_rpc::user_agent::Protocol {
+            kind: relay_rpc::user_agent::ProtocolKind::WalletConnect,
             version: 2,
         },
-        sdk: walletconnect_sdk::rpc::user_agent::Sdk {
-            language: walletconnect_sdk::rpc::user_agent::SdkLanguage::Rust,
+        sdk: relay_rpc::user_agent::Sdk {
+            language: relay_rpc::user_agent::SdkLanguage::Rust,
             // TODO: proper version
             version: "1.0".to_string(),
         },
-        os: walletconnect_sdk::rpc::user_agent::OsInfo {
+        os: relay_rpc::user_agent::OsInfo {
             os_family: "ECS".into(),
             ua_family: None,
             version: None,
         },
-        id: Some(walletconnect_sdk::rpc::user_agent::Id {
-            environment: walletconnect_sdk::rpc::user_agent::Environment::Unknown(
-                "Notify Server".into(),
-            ),
+        id: Some(relay_rpc::user_agent::Id {
+            environment: relay_rpc::user_agent::Environment::Unknown("Notify Server".into()),
             host: Some(cast_url.into()),
         }),
     };
-    let user_agent = walletconnect_sdk::rpc::user_agent::UserAgent::ValidUserAgent(ua);
+    let user_agent = relay_rpc::user_agent::UserAgent::ValidUserAgent(ua);
 
     let url = Url::parse(relay_url)?;
 

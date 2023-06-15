@@ -7,10 +7,10 @@ use {
         Result,
     },
     mongodb::bson::doc,
+    relay_rpc::domain::MessageId,
     serde::{Deserialize, Serialize},
     sha2::Sha256,
     std::sync::Arc,
-    walletconnect_sdk::rpc::domain::MessageId,
 };
 
 mod handlers;
@@ -24,14 +24,14 @@ pub struct RequestBody {
 
 pub struct WebsocketService {
     state: Arc<AppState>,
-    wsclient: Arc<walletconnect_sdk::client::websocket::Client>,
+    wsclient: Arc<relay_client::websocket::Client>,
     client_events: tokio::sync::mpsc::UnboundedReceiver<wsclient::RelayClientEvent>,
 }
 
 impl WebsocketService {
     pub async fn new(
         app_state: Arc<AppState>,
-        wsclient: Arc<walletconnect_sdk::client::websocket::Client>,
+        wsclient: Arc<relay_client::websocket::Client>,
         rx: tokio::sync::mpsc::UnboundedReceiver<RelayClientEvent>,
     ) -> Result<Self> {
         Ok(Self {
@@ -82,9 +82,9 @@ impl WebsocketService {
 }
 
 async fn handle_msg(
-    msg: walletconnect_sdk::client::websocket::PublishedMessage,
+    msg: relay_client::websocket::PublishedMessage,
     state: &Arc<AppState>,
-    client: &Arc<walletconnect_sdk::client::websocket::Client>,
+    client: &Arc<relay_client::websocket::Client>,
 ) -> Result<()> {
     info!("Websocket service received message: {:?}", msg);
     match msg.tag {

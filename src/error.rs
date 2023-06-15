@@ -3,9 +3,9 @@ use {
     axum::response::IntoResponse,
     data_encoding::DecodeError,
     hyper::StatusCode,
+    relay_rpc::domain::ClientIdDecodingError,
     std::string::FromUtf8Error,
     tracing::{error, warn},
-    walletconnect_sdk::rpc::domain::ClientIdDecodingError,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -25,7 +25,7 @@ pub enum Error {
     Envy(#[from] envy::Error),
 
     #[error(transparent)]
-    RpcAuth(#[from] walletconnect_sdk::rpc::auth::Error),
+    RpcAuth(#[from] relay_rpc::auth::Error),
 
     #[error(transparent)]
     Trace(#[from] opentelemetry::trace::TraceError),
@@ -67,7 +67,7 @@ pub enum Error {
     Base64Decode(#[from] base64::DecodeError),
 
     #[error(transparent)]
-    WalletConnectClient(#[from] walletconnect_sdk::client::error::Error),
+    WalletConnectClient(#[from] relay_client::error::Error),
 
     #[error(transparent)]
     TryRecvError(#[from] tokio::sync::mpsc::error::TryRecvError),

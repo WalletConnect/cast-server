@@ -939,6 +939,8 @@ dependencies = [
  "rand 0.7.3",
  "rand_core 0.5.1",
  "regex",
+ "relay_client",
+ "relay_rpc",
  "reqwest",
  "ring",
  "serde",
@@ -959,7 +961,6 @@ dependencies = [
  "tungstenite",
  "url",
  "uuid",
- "walletconnect_sdk",
  "x25519-dalek",
 ]
 
@@ -3251,6 +3252,7 @@ checksum = "a5996294f19bd3aae0453a862ad728f60e6600695733dd5df01da90c54363a3c"
 [[package]]
 name = "relay_client"
 version = "0.1.0"
+source = "git+https://github.com/WalletConnect/WalletConnectRust.git?tag=v0.15.0#7b49fc420bb402e8793b6fc0caeca5d4ba9d194e"
 dependencies = [
  "chrono",
  "futures-channel",
@@ -3273,6 +3275,7 @@ dependencies = [
 [[package]]
 name = "relay_rpc"
 version = "0.1.0"
+source = "git+https://github.com/WalletConnect/WalletConnectRust.git?tag=v0.15.0#7b49fc420bb402e8793b6fc0caeca5d4ba9d194e"
 dependencies = [
  "bs58",
  "chrono",
@@ -4529,14 +4532,6 @@ name = "vsimd"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64"
-
-[[package]]
-name = "walletconnect_sdk"
-version = "0.1.0"
-dependencies = [
- "relay_client",
- "relay_rpc",
-]
 
 [[package]]
 name = "want"

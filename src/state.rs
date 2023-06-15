@@ -9,10 +9,10 @@ use {
     futures::TryStreamExt,
     log::info,
     mongodb::{bson::doc, options::ReplaceOptions},
+    relay_rpc::auth::ed25519_dalek::Keypair,
     serde::{Deserialize, Serialize},
     std::{fmt, sync::Arc},
     url::Url,
-    walletconnect_sdk::rpc::auth::ed25519_dalek::Keypair,
 };
 
 pub struct AppState {
@@ -21,7 +21,7 @@ pub struct AppState {
     pub metrics: Option<Metrics>,
     pub database: Arc<mongodb::Database>,
     pub keypair: Keypair,
-    pub wsclient: Arc<walletconnect_sdk::client::websocket::Client>,
+    pub wsclient: Arc<relay_client::websocket::Client>,
 }
 
 build_info::build_info!(fn build_info);
@@ -31,7 +31,7 @@ impl AppState {
         config: Configuration,
         database: Arc<mongodb::Database>,
         keypair: Keypair,
-        wsclient: Arc<walletconnect_sdk::client::websocket::Client>,
+        wsclient: Arc<relay_client::websocket::Client>,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 

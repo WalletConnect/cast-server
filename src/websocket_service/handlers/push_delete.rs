@@ -18,9 +18,9 @@ use {
 };
 
 pub async fn handle(
-    msg: walletconnect_sdk::client::websocket::PublishedMessage,
+    msg: relay_client::websocket::PublishedMessage,
     state: &Arc<AppState>,
-    client: &Arc<walletconnect_sdk::client::websocket::Client>,
+    client: &Arc<relay_client::websocket::Client>,
 ) -> Result<()> {
     let topic = msg.topic;
     let database = &state.database;

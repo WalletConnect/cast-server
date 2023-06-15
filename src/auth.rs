@@ -2,12 +2,12 @@ use {
     crate::error::Result,
     base64::Engine,
     chrono::{DateTime, Utc},
-    serde::{Deserialize, Serialize},
-    walletconnect_sdk::rpc::{
+    relay_rpc::{
         auth::did::{DID_DELIMITER, DID_METHOD_KEY, DID_PREFIX},
         domain::DecodedClientId,
         jwt::JWT_HEADER_ALG,
     },
+    serde::{Deserialize, Serialize},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,5 +191,5 @@ struct KeyServerResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CacaoValue {
-    cacao: walletconnect_sdk::rpc::auth::cacao::Cacao,
+    cacao: relay_rpc::auth::cacao::Cacao,
 }

@@ -19,12 +19,12 @@ use {
     },
     chrono::Utc,
     rand::{rngs::StdRng, Rng, SeedableRng},
-    serde_json::json,
-    sha2::Sha256,
-    walletconnect_sdk::rpc::{
+    relay_rpc::{
         auth::ed25519_dalek::Keypair,
         domain::{ClientId, DecodedClientId},
     },
+    serde_json::json,
+    sha2::Sha256,
     x25519_dalek::{PublicKey, StaticSecret},
 };
 
@@ -76,9 +76,7 @@ PROJECT_ID to be set",
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
     let connection_handler = wsclient::RelayConnectionHandler::new("cast-client", tx);
-    let wsclient = Arc::new(walletconnect_sdk::client::websocket::Client::new(
-        connection_handler,
-    ));
+    let wsclient = Arc::new(relay_client::websocket::Client::new(connection_handler));
 
     let opts =
         wsclient::create_connection_opts(&relay_url, &project_id, &keypair, &cast_url).unwrap();

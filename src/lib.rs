@@ -13,6 +13,7 @@ use {
     mongodb::options::{ClientOptions, ResolverConfig},
     opentelemetry::{sdk::Resource, KeyValue},
     rand::prelude::*,
+    relay_rpc::auth::ed25519_dalek::Keypair,
     std::{net::SocketAddr, sync::Arc},
     tokio::{select, sync::broadcast},
     tower::ServiceBuilder,
@@ -21,7 +22,6 @@ use {
         trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     },
     tracing::Level,
-    walletconnect_sdk::rpc::auth::ed25519_dalek::Keypair,
 };
 
 pub mod analytics;
@@ -68,9 +68,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     let connection_handler = wsclient::RelayConnectionHandler::new("cast-client", tx);
-    let wsclient = Arc::new(walletconnect_sdk::client::websocket::Client::new(
-        connection_handler,
-    ));
+    let wsclient = Arc::new(relay_client::websocket::Client::new(connection_handler));
 
     // Creating state
     let mut state = AppState::new(config, db, keypair, wsclient.clone())?;
