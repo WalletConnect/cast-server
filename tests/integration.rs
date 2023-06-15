@@ -284,6 +284,11 @@ as_bytes())     });
         .await
         .unwrap();
 
+    let resp = dbg!(resp
+        .json::<cast_server::handlers::notify::Response>()
+        .await
+        .unwrap());
+
     assert_eq!(resp.not_found.len(), 1);
 }
 

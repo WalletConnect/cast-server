@@ -72,14 +72,24 @@ pub async fn handler(
         accounts,
     } = cast_args;
 
+    // We assume all accounts were not found untill found
+    accounts.iter().for_each(|account| {
+        response.not_found.insert(account.clone());
+    });
+
+    // Get the accounts
     let cursor = state
         .database
         .collection::<ClientData>(&project_id)
         .find(doc! { "_id": {"$in": &accounts}}, None)
         .await?;
 
+    // Generate publish jobs - this will also remove accounts from not_found
+    // Prepares the encrypted message and gets the topic for each account
     let jobs = generate_publish_jobs(notification, cursor, &mut response).await?;
 
+    // Attempts to send to all found accounts, waiting for relay ack for
+    // NOTIFY_TIMEOUT seconds
     process_publish_jobs(jobs, state.wsclient.clone(), &mut response, uuid).await?;
 
     info!(
