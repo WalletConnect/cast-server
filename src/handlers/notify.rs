@@ -222,6 +222,6 @@ fn send_metrics(
     metrics
         .send_latency
         .record(&ctx, timer.elapsed().as_millis().try_into().unwrap(), &[
-            KeyValue::new("project_id", project_id.clone()),
+            KeyValue::new("project_id", project_id),
         ])
 }

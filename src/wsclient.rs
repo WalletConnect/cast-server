@@ -90,7 +90,7 @@ pub fn create_connection_opts(
     let auth = AuthToken::new(cast_url)
         .aud(relay_url)
         .ttl(Duration::from_secs(60 * 60))
-        .as_jwt(&keypair)?;
+        .as_jwt(keypair)?;
 
     let ua = ValidUserAgent {
         protocol: relay_rpc::user_agent::Protocol {
