@@ -84,15 +84,6 @@ pub async fn handle(
         )
         .await?;
 
-    // let request = new_rpc_request(Params::Publish(Publish {
-    //     topic: response_topic.into(),
-    //     message: base64_notification.into(),
-    //     ttl_secs: 86400,
-    //     tag: 4007,
-    //     prompt: false,
-    // }));
-    // client.send_raw(Payload::Request(request)).await?;
-
     let client_data = ClientData {
         id: sub_auth.sub.trim_start_matches("did:pkh:").into(),
         relay_url: state.config.relay_url.clone(),

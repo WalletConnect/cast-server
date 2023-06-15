@@ -22,7 +22,6 @@ use {
     std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration},
     tokio_stream::StreamExt,
     tracing::info,
-    walletconnect_sdk::rpc::domain::{ClientId, DecodedClientId},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -180,6 +179,8 @@ async fn generate_publish_jobs(
 
         let base64_notification =
             base64::engine::general_purpose::STANDARD.encode(envelope.to_bytes());
+
+        let topic = Topic::new(sha256::digest(&*hex::decode(client_data.sym_key)?).into());
 
         jobs.push(PublisJob {
             topic,
