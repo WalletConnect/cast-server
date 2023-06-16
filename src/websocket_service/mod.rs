@@ -134,7 +134,7 @@ async fn resubscribe(
     // record
     // Chunked into 500, as thats the max relay is allowing
     cursor
-        .chunks(500)
+        .chunks(relay_rpc::rpc::MAX_SUBSCRIPTION_BATCH_SIZE)
         .for_each(|chunk| {
             let topics = chunk
                 .into_iter()
@@ -154,7 +154,7 @@ async fn resubscribe(
         .await?;
 
     cursor
-        .chunks(500)
+        .chunks(relay_rpc::rpc::MAX_SUBSCRIPTION_BATCH_SIZE)
         .for_each(|chunk| {
             let topics = chunk
                 .into_iter()
