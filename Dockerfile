@@ -31,7 +31,7 @@ FROM                chef AS plan
 WORKDIR             /app
 COPY                Cargo.lock Cargo.toml ./
 COPY                src ./src
-RUN                 cargo chef prepare --recipe-path recipe.json
+RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo chef prepare --recipe-path recipe.json
 
 ################################################################################
 #
@@ -52,10 +52,10 @@ RUN                 apt-get update \
 WORKDIR             /app
 # Cache dependancies
 COPY --from=plan    /app/recipe.json recipe.json
-RUN                 cargo chef cook --recipe-path recipe.json ${RELEASE}
+RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo chef cook --recipe-path recipe.json ${RELEASE}
 # Build the local binary
 COPY                . .
-RUN                 cargo build --bin cast-server ${RELEASE}
+RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --bin cast-server ${RELEASE}
 # Certificate file required to use TLS with AWS DocumentDB.
 RUN                 wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
 ################################################################################
