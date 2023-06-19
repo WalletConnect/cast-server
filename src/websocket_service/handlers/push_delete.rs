@@ -63,7 +63,7 @@ pub async fn handle(
                 "[{uuid}] Unregistered {} from {}, but couldn't decrypt message",
                 account, project_id
             );
-            return Err(Error::EncryptionError("[{uuid}] Failed to decrypt".to_string()))
+            return Err(Error::EncryptionError(format!("[{uuid}] Failed to decrypt")))
         };
 
     let msg = String::from_utf8(msg)?;
