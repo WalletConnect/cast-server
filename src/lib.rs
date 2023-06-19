@@ -167,7 +167,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
 }
 
 // TODO: This is 50 years, only used temporarely untill the client is changed.
-const HTTP_CLIENT_TTL: u32 = 50 * 365 * 24 * 60 * 60;
+const HTTP_CLIENT_TTL: u64 = 50 * 365 * 24 * 60 * 60;
 
 fn create_http_client(
     key: &Keypair,
