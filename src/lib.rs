@@ -166,6 +166,9 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
     Ok(())
 }
 
+// TODO: This is 50 years, only used temporarely untill the client is changed.
+const HTTP_CLIENT_TTL: u32 = 50 * 365 * 24 * 60 * 60;
+
 fn create_http_client(
     key: &Keypair,
     http_relay_url: &str,
@@ -177,7 +180,7 @@ fn create_http_client(
 
     let auth = relay_rpc::auth::AuthToken::new(cast_url)
         .aud(aud_address)
-        .ttl(Duration::from_secs(50 * 365 * 24 * 60 * 60))
+        .ttl(Duration::from_secs(HTTP_CLIENT_TTL))
         .as_jwt(key)
         .unwrap();
 
