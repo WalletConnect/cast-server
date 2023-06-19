@@ -152,6 +152,7 @@ PROJECT_ID to be set",
             message,
             4006,
             Duration::from_secs(86400),
+            false,
         )
         .await
         .unwrap();
@@ -250,11 +251,10 @@ PROJECT_ID to be set",
     });
 
     let delete_message = json! ({
-        "id": id,
-        "jsonrpc": "2.0",
-        "params":
-base64::engine::general_purpose::STANDARD.encode(delete_params.to_string().
-as_bytes())     });
+            "id": id,
+            "jsonrpc": "2.0",
+            "params": base64::engine::general_purpose::STANDARD.encode(delete_params.to_string().as_bytes())
+    });
 
     let envelope = Envelope::<EnvelopeType0>::new(&response_topic_key, delete_message).unwrap();
 
@@ -266,6 +266,7 @@ as_bytes())     });
             encoded_message,
             4004,
             Duration::from_secs(86400),
+            false,
         )
         .await
         .unwrap();
