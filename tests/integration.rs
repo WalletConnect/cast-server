@@ -1,16 +1,11 @@
 use {
     crate::context::encode_subscription_auth,
-    cast_server::wsclient::RelayClientEvent,
-    std::{sync::Arc, time::Duration},
-};
-use {
-    // crate::context::encode_subscription_auth,
     base64::Engine,
     cast_server::{
         auth::SubscriptionAuth,
         types::{Envelope, EnvelopeType0, EnvelopeType1, Notification},
         websocket_service::{NotifyMessage, NotifyResponse},
-        wsclient,
+        wsclient::{self, RelayClientEvent},
     },
     chacha20poly1305::{
         aead::{generic_array::GenericArray, AeadMut},
@@ -25,6 +20,7 @@ use {
     },
     serde_json::json,
     sha2::Sha256,
+    std::{sync::Arc, time::Duration},
     x25519_dalek::{PublicKey, StaticSecret},
 };
 

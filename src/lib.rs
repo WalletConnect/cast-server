@@ -173,7 +173,7 @@ fn create_http_client(
     project_id: &str,
 ) -> relay_client::http::Client {
     let rpc_address = format!("{http_relay_url}/rpc");
-    let aud_address = format!("{http_relay_url}");
+    let aud_address = http_relay_url.to_string();
 
     let auth = relay_rpc::auth::AuthToken::new(cast_url)
         .aud(aud_address)
