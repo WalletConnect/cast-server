@@ -16,7 +16,8 @@ pub async fn handler(
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse> {
-    info!("Getting webhooks for project: {}", project_id);
+    let uuid = uuid::Uuid::new_v4();
+    info!("[{uuid}] Getting webhooks for project: {project_id}");
 
     let cursor = state
         .database

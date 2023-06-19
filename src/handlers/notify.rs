@@ -92,10 +92,7 @@ pub async fn handler(
     // NOTIFY_TIMEOUT seconds
     process_publish_jobs(jobs, state.wsclient.clone(), &mut response, uuid).await?;
 
-    info!(
-        "Response: {:?} for notify from project: {} for request: {}",
-        response, project_id, uuid
-    );
+    info!("[{uuid}] Response: {response:?} for notify from project: {project_id}");
 
     if let Some(metrics) = &state.metrics {
         send_metrics(metrics, &response, project_id, timer);
@@ -110,7 +107,7 @@ async fn process_publish_jobs(
     jobs: Vec<PublishJob>,
     client: Arc<relay_client::websocket::Client>,
     response: &mut Response,
-    request_id: uuid::Uuid,
+    uuid: uuid::Uuid,
 ) -> Result<()> {
     let timer = std::time::Instant::now();
     let futures = jobs.into_iter().map(|job| {
@@ -134,13 +131,10 @@ async fn process_publish_jobs(
                 response.sent.insert(account.to_string());
             }
             Err(e) => {
-                warn!(
-                    "Error sending notification: {} for {} during {}",
-                    e.0, e.1, request_id
-                );
+                warn!("[{uuid}] Error sending notification: {} for {}", e.0, e.1);
                 response.failed.insert(SendFailure {
                     account: e.1.to_string(),
-                    reason: "Timed out while waiting for acknowledgement".into(),
+                    reason: "[{uuid}] Timed out while waiting for acknowledgement".into(),
                 });
             }
         }

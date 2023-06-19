@@ -23,7 +23,8 @@ pub async fn handler(
     State(state): State<Arc<AppState>>,
     Json(webhook_info): Json<WebhookConfig>,
 ) -> Result<impl IntoResponse> {
-    info!("Registering webhook for project: {}", project_id);
+    let uuid = uuid::Uuid::new_v4();
+    info!("[{uuid}] Registering webhook for project: {project_id}");
     let webhook_id = Uuid::new_v4().to_string();
 
     validate_url(&webhook_info.url)?;
@@ -41,10 +42,7 @@ pub async fn handler(
         .insert_one(webhook, None)
         .await?;
 
-    info!(
-        "Webhook registered: {} for project:{}",
-        webhook_id, project_id
-    );
+    info!("[{uuid}] Webhook registered: {webhook_id} for project:{project_id}");
 
     Ok((
         axum::http::StatusCode::CREATED,
