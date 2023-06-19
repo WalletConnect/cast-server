@@ -26,7 +26,7 @@ pub async fn handle(
     state: &Arc<AppState>,
     client: &Arc<relay_client::websocket::Client>,
 ) -> Result<()> {
-    let uuid = uuid::Uuid::new_v4();
+    let request_id = uuid::Uuid::new_v4();
     let topic = msg.topic.to_string();
 
     // Grab record from db
@@ -42,14 +42,14 @@ pub async fn handle(
     )?;
 
     let client_pubkey = envelope.pubkey();
-    info!("[{uuid}] User pubkey: {}", hex::encode(client_pubkey));
+    info!("[{request_id}] User pubkey: {}", hex::encode(client_pubkey));
 
     let response_sym_key = derive_key(hex::encode(client_pubkey), project_data.private_key)?;
-    info!("[{uuid}] Response_sym_key: {}", &response_sym_key);
+    info!("[{request_id}] Response_sym_key: {}", &response_sym_key);
 
     let msg: NotifyMessage<NotifySubscribe> = decrypt_message(envelope, &response_sym_key)?;
 
-    info!("[{uuid}] Register message: {:?}", &msg);
+    info!("[{request_id}] Register message: {:?}", &msg);
 
     let id = msg.id;
 
@@ -64,12 +64,12 @@ pub async fn handle(
         result: json!({"publicKey": hex::encode(public.to_bytes())}),
     };
     info!(
-        "[{uuid}] Response for user: {}",
+        "[{request_id}] Response for user: {}",
         serde_json::to_string(&response)?
     );
 
     let push_key = derive_key(hex::encode(client_pubkey), hex::encode(secret))?;
-    info!("[{uuid}] Derived push_key: {}", &push_key);
+    info!("[{request_id}] Derived push_key: {}", &push_key);
 
     let envelope = Envelope::<EnvelopeType0>::new(&response_sym_key, response)?;
 
@@ -77,7 +77,7 @@ pub async fn handle(
 
     let key = hex::decode(response_sym_key)?;
     let response_topic = sha256::digest(&*key);
-    info!("[{uuid}] Response_topic: {}", &response_topic);
+    info!("[{request_id}] Response_topic: {}", &response_topic);
 
     client
         .publish(
@@ -95,7 +95,7 @@ pub async fn handle(
         scope: sub_auth.scp.split(' ').map(|s| s.into()).collect(),
     };
     info!(
-        "[{uuid}] Registering account: {:?} with topic: {} at project: {}. Scope: {:?}",
+        "[{request_id}] Registering account: {:?} with topic: {} at project: {}. Scope: {:?}",
         &client_data.id,
         &sha256::digest(&*hex::decode(&push_key)?),
         &project_data.id,

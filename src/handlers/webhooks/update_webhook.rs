@@ -17,8 +17,8 @@ pub async fn handler(
     State(state): State<Arc<AppState>>,
     Json(webhook_info): Json<WebhookConfig>,
 ) -> Result<impl IntoResponse> {
-    let uuid = uuid::Uuid::new_v4();
-    info!("[{uuid}] Updating webhook: {webhook_id} for project: {project_id}");
+    let request_id = uuid::Uuid::new_v4();
+    info!("[{request_id}] Updating webhook: {webhook_id} for project: {project_id}");
     state
         .database
         .collection::<WebhookInfo>("webhooks")
