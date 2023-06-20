@@ -73,7 +73,7 @@ impl WebsocketService {
                 wsclient::RelayClientEvent::Error(e) => {
                     warn!("Received error from relay: {}", e);
                     while let Err(e) = self.connect().await {
-                        warn!("Error reconnecting to relay: {}", e);
+                        error!("Error reconnecting to relay: {}", e);
                         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                     }
                 }
