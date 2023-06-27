@@ -15,8 +15,13 @@ use {
     url::Url,
 };
 
+#[cfg(feature = "analytics")]
+use crate::analytics::CastAnalytics;
+
 pub struct AppState {
     pub config: Configuration,
+    #[cfg(feature = "analytics")]
+    pub analytics: CastAnalytics,
     pub build_info: BuildInfo,
     pub metrics: Option<Metrics>,
     pub database: Arc<mongodb::Database>,
@@ -34,10 +39,13 @@ impl AppState {
         keypair: Keypair,
         wsclient: Arc<relay_client::websocket::Client>,
         http_relay_client: Arc<relay_client::http::Client>,
+        #[cfg(feature = "analytics")] analytics: CastAnalytics,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 
         Ok(AppState {
+            #[cfg(feature = "analytics")]
+            analytics,
             config,
             build_info: build_info.clone(),
             metrics: None,
@@ -85,6 +93,15 @@ impl AppState {
                 ReplaceOptions::builder().upsert(true).build(),
             )
             .await?;
+
+        #[cfg(feature = "analytics")]
+        self.analytics
+            .client(crate::analytics::client_info::ClientInfo {
+                project_id: project_id.into(),
+                account: client_data.id.clone().into(),
+                topic: topic.clone().into(),
+                registered_at: gorgon::time::now(),
+            });
 
         self.wsclient.subscribe(topic.into()).await?;
 

@@ -7,10 +7,7 @@ pub struct MessageInfo {
     pub country: Option<Arc<str>>,
     pub continent: Option<Arc<str>>,
     pub project_id: Arc<str>,
-    pub client_id: Arc<str>,
-    pub topic: Option<Arc<str>>,
-    pub push_provider: Arc<str>,
-    pub encrypted: bool,
-    pub flags: u32,
-    pub received_at: chrono::NaiveDateTime,
+    pub msg_id: Arc<str>,
+    pub topic: Arc<str>,
+    pub account: Arc<str>,
 }

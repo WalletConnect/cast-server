@@ -1,3 +1,10 @@
+#[cfg(feature = "analytics")]
+use {
+    crate::analytics::message_info::MessageInfo,
+    axum::extract::ConnectInfo,
+    relay_rpc::rpc::{msg_id::MsgId, Publish},
+    std::net::SocketAddr,
+};
 use {
     crate::{
         error,
@@ -6,7 +13,7 @@ use {
         types::{ClientData, Envelope, EnvelopeType0, Notification},
     },
     axum::{
-        extract::{ConnectInfo, Path, State},
+        extract::{Path, State},
         http::StatusCode,
         response::IntoResponse,
         Json,
@@ -19,7 +26,7 @@ use {
     opentelemetry::{Context, KeyValue},
     relay_rpc::domain::Topic,
     serde::{Deserialize, Serialize},
-    std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration},
+    std::{collections::HashSet, sync::Arc, time::Duration},
     tokio_stream::StreamExt,
     tracing::info,
 };
@@ -52,7 +59,7 @@ pub struct Response {
 }
 
 pub async fn handler(
-    ConnectInfo(_addr): ConnectInfo<SocketAddr>,
+    #[cfg(feature = "analytics")] ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
     Json(cast_args): Json<NotifyBody>,
@@ -95,6 +102,12 @@ pub async fn handler(
         state.http_relay_client.clone(),
         &mut response,
         request_id,
+        #[cfg(feature = "analytics")]
+        addr,
+        #[cfg(feature = "analytics")]
+        &state,
+        #[cfg(feature = "analytics")]
+        &project_id,
     )
     .await?;
 
@@ -114,11 +127,44 @@ async fn process_publish_jobs(
     client: Arc<relay_client::http::Client>,
     response: &mut Response,
     request_id: uuid::Uuid,
+    #[cfg(feature = "analytics")] addr: SocketAddr,
+    #[cfg(feature = "analytics")] state: &Arc<AppState>,
+    #[cfg(feature = "analytics")] project_id: &str,
 ) -> Result<()> {
     let timer = std::time::Instant::now();
     let futures = jobs.into_iter().map(|job| {
         let remaining_time = timer.elapsed();
         let timeout_duration = Duration::from_secs(NOTIFY_TIMEOUT) - remaining_time;
+
+        #[cfg(feature = "analytics")]
+        {
+            let (country, continent, region) = state
+                .analytics
+                .geoip
+                .lookup_geo_data(addr.ip())
+                .map_or((None, None, None), |geo| {
+                    (geo.country, geo.continent, geo.region)
+                });
+
+            let msg_id = Publish {
+                topic: job.topic.clone(),
+                message: job.message.clone().into(),
+                ttl_secs: 86400,
+                tag: 4002,
+                prompt: true,
+            }
+            .msg_id();
+            state.analytics.message(MessageInfo {
+                region: region.map(|r| Arc::from(r.join(", "))),
+                country,
+                continent,
+                project_id: project_id.into(),
+                msg_id: msg_id.into(),
+                topic: job.topic.clone().to_string().into(),
+                account: job.account.clone().into(),
+            })
+        };
+
         tokio::time::timeout(
             timeout_duration,
             client.publish(

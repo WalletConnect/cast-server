@@ -23,7 +23,8 @@ use {
     },
     tracing::Level,
 };
-
+#[cfg(feature = "analytics")]
+pub mod analytics;
 pub mod auth;
 pub mod config;
 pub mod error;
@@ -31,6 +32,7 @@ pub mod handlers;
 pub mod jsonrpc;
 pub mod log;
 mod metrics;
+mod networking;
 mod state;
 pub mod types;
 pub mod websocket_service;
@@ -75,8 +77,19 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
         &config.project_id,
     ));
 
+    #[cfg(feature = "analytics")]
+    let analytics = analytics::initialize(&config).await?;
+
     // Creating state
-    let mut state = AppState::new(config, db, keypair, wsclient.clone(), http_client)?;
+    let mut state = AppState::new(
+        config,
+        db,
+        keypair,
+        wsclient.clone(),
+        http_client,
+        #[cfg(feature = "analytics")]
+        analytics,
+    )?;
 
     // Telemetry
     if state.config.telemetry_prometheus_port.is_some() {
