@@ -1,5 +1,5 @@
 use {
-    crate::types::Notification,
+    crate::types::{Notification, Subscribtion, Unsubscribe},
     serde::{Deserialize, Serialize},
 };
 
@@ -36,6 +36,12 @@ pub struct JsonRpcPayload {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "method", content = "params")]
 pub enum JsonRpcParams {
+    #[serde(rename = "irn_publish", alias = "iridium_publish")]
+    Publish(PublishParams),
     #[serde(rename = "wc_pushMessage")]
     Push(Notification),
+    #[serde(rename = "irn_subscribe")]
+    Subscribe(Subscribtion),
+    #[serde(rename = "irn_unsubscribe")]
+    Unsubscribe(Unsubscribe),
 }
