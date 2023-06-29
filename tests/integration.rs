@@ -201,7 +201,7 @@ PROJECT_ID to be set",
 
     let notify_body = json!({
         "notification": notification,
-        "accounts": ["test_account"]
+        "accounts": ["eip155:123:test_account"]
     });
 
     // wait for notify server to register the user
