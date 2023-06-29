@@ -79,16 +79,6 @@ pub async fn handle(
     let response_topic = sha256::digest(&*key);
     info!("[{request_id}] Response_topic: {}", &response_topic);
 
-    client
-        .publish(
-            response_topic.into(),
-            base64_notification,
-            4007,
-            Duration::from_secs(86400),
-            false,
-        )
-        .await?;
-
     let client_data = ClientData {
         id: sub_auth.sub.trim_start_matches("did:pkh:").into(),
         relay_url: state.config.relay_url.clone(),
@@ -111,5 +101,14 @@ pub async fn handle(
         )
         .await?;
 
+    client
+        .publish(
+            response_topic.into(),
+            base64_notification,
+            4007,
+            Duration::from_secs(86400),
+            false,
+        )
+        .await?;
     Ok(())
 }
