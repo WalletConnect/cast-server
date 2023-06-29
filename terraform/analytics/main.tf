@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "analytics-data-lake_bucket" {
-  bucket = "walletconnect.${var.app_name}.${var.environment}.analytics.data-lake"
+  bucket = "walletconnect.data_lake.${var.environment}"
 }
 
 resource "aws_s3_bucket_acl" "analytics-data-lake_acl" {

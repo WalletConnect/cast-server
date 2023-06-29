@@ -54,7 +54,7 @@ impl CastAnalytics {
             let exporter = AwsExporter::new(AwsExporterOpts {
                 export_name: "cast_messages",
                 file_extension: "parquet",
-                bucket_name: bucket_name.clone(),
+                bucket_name: format!("{bucket_name}/messages"),
                 s3_client: s3_client.clone(),
                 node_ip: node_ip.clone(),
             });
@@ -69,7 +69,7 @@ impl CastAnalytics {
             let exporter = AwsExporter::new(AwsExporterOpts {
                 export_name: "cast_clients",
                 file_extension: "parquet",
-                bucket_name,
+                bucket_name: format!("{bucket_name}/clients"),
                 s3_client,
                 node_ip,
             });
