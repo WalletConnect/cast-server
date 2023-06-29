@@ -108,7 +108,7 @@ impl AppState {
         event: WebhookNotificationEvent,
         account: &str,
     ) -> Result<()> {
-        if is_valid_account(account) == false {
+        if !is_valid_account(account) {
             info!("Didn't register account - invalid account: {account} for project {project_id}");
             return Err(crate::error::Error::InvalidAccount);
         }
