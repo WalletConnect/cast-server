@@ -89,9 +89,9 @@ module "ecs" {
   telemetry_sample_ratio = local.environment == "prod" ? 0.25 : 1.0
   allowed_origins        = local.environment == "prod" ? "https://cloud.walletconnect.com" : "*"
 
-  analytics-data-lake_bucket_name = local.analytics_data_lake_bucket_name
+  data_lake_bucket_name = local.analytics_data_lake_bucket_name
+  data_lake_kms_key_arn = var.data_lake_kms_key_arn
   analytics_geoip_db_bucket_name  = local.geoip_db_bucket_name
-  analytics_geoip_db_key          = var.geoip_db_key
 }
 
 module "vpc" {

@@ -56,9 +56,9 @@ impl CastAnalytics {
                 export_prefix: "cast/messages",
                 export_name: "messages",
                 file_extension: "parquet",
-                bucket_name,
-                s3_client,
-                node_ip,
+                bucket_name: bucket_name.clone(),
+                s3_client: s3_client.clone(),
+                node_ip: node_ip.clone(),
             });
 
             let collector = ParquetWriter::<MessageInfo>::new(opts.clone(), exporter)?;
@@ -130,10 +130,10 @@ pub async fn initialize(config: &Configuration) -> Result<CastAnalytics> {
         GeoIpReader::empty()
     };
 
-    CastAnalytics::with_aws_export(
+    Ok(CastAnalytics::with_aws_export(
         s3_client,
         &config.analytics_export_bucket,
         config.public_ip,
         geoip,
-    )
+    )?)
 }

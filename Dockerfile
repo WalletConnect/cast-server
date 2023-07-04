@@ -52,10 +52,10 @@ RUN                 apt-get update \
 WORKDIR             /app
 # Cache dependancies
 COPY --from=plan    /app/recipe.json recipe.json
-RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo chef cook --recipe-path recipe.json ${RELEASE}
+RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo chef cook --recipe-path recipe.json ${RELEASE} --analytics analytics
 # Build the local binary
 COPY                . .
-RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --bin cast-server ${RELEASE}
+RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --bin cast-server ${RELEASE} --analytics analytics
 # Certificate file required to use TLS with AWS DocumentDB.
 RUN                 wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
 ################################################################################
