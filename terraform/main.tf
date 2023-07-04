@@ -28,7 +28,7 @@ locals {
 
   environment = terraform.workspace
 
-  geoip_db_bucket_name = "${local.environment}.relay.geo.ip.database.private.${local.environment}.walletconnect"
+  geoip_db_bucket_name            = "${local.environment}.relay.geo.ip.database.private.${local.environment}.walletconnect"
   analytics_data_lake_bucket_name = "walletconnect.data-lake.${local.environment}"
 }
 
@@ -89,9 +89,9 @@ module "ecs" {
   telemetry_sample_ratio = local.environment == "prod" ? 0.25 : 1.0
   allowed_origins        = local.environment == "prod" ? "https://cloud.walletconnect.com" : "*"
 
-  analytics-data-lake_bucket_name = local.analytics_data_lake_bucket_name 
-  analytics_geoip_db_bucket_name = local.geoip_db_bucket_name
-  analytics_geoip_db_key         = var.geoip_db_key
+  analytics-data-lake_bucket_name = local.analytics_data_lake_bucket_name
+  analytics_geoip_db_bucket_name  = local.geoip_db_bucket_name
+  analytics_geoip_db_key          = var.geoip_db_key
 }
 
 module "vpc" {

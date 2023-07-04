@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "analytics_data_lake-bucket" {
-  bucket = var.analytics-data-lake_bucket_name 
+  bucket = var.analytics-data-lake_bucket_name
 }
 
 
