@@ -74,7 +74,7 @@ resource "aws_ecs_task_definition" "app_task_definition" {
         { name = "KEYPAIR_SEED", value = var.keypair_seed },
         { name = "OTEL_TRACES_SAMPLER_ARG", value = tostring(var.telemetry_sample_ratio) },
         { name = "ANALYTICS_ENABLED", value = "true" },
-        { name = "ANALYTICS_EXPORT_BUCKET", value = var.analytics_datalake_bucket_name },
+        { name = "ANALYTICS_EXPORT_BUCKET", value = var.analytics-data-lake_bucket_name },
         { name = "ANALYTICS_GEOIP_DB_BUCKET", value = var.analytics_geoip_db_bucket_name },
         { name = "ANALYTICS_GEOIP_DB_KEY", value = var.analytics_geoip_db_key },
         { name = "PROJECT_ID", value = var.project_id },

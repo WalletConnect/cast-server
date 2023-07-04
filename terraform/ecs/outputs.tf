@@ -17,3 +17,8 @@ output "load_balancer_arn_suffix" {
   description = "The ARN suffix of the load balancer"
   value       = aws_lb.application_load_balancer.arn_suffix
 }
+
+output "analytics_bucket_arn" {
+  description = "The ARN of the analytics bucket"
+  value       = aws_s3_bucket.analytics_data_lake-bucket.arn
+}

@@ -7,12 +7,13 @@ use {
         log::prelude::*,
     },
     aws_config::meta::region::RegionProviderChain,
-    aws_sdk_s3::{Client as S3Client, Region},
+    aws_sdk_s3::{config::Region, Client as S3Client},
     gorgon::{
-        batcher::{AwsExporter, AwsExporterOpts, BatchCollectorOpts},
+        collectors::{batch::BatchOpts, noop::NoopCollector},
+        exporters::aws::{AwsExporter, AwsOpts},
         geoip::{AnalyticsGeoData, GeoIpReader},
+        writers::parquet::ParquetWriter,
         Analytics,
-        NoopCollector,
     },
     std::{net::IpAddr, sync::Arc},
 };
@@ -43,41 +44,38 @@ impl CastAnalytics {
         export_bucket: &str,
         node_ip: IpAddr,
         geoip: GeoIpReader,
-    ) -> Result<Self> {
+    ) -> anyhow::Result<Self> {
         info!(%export_bucket, "initializing analytics with aws export");
 
-        let opts = BatchCollectorOpts::default();
+        let opts = BatchOpts::default();
         let bucket_name: Arc<str> = export_bucket.into();
         let node_ip: Arc<str> = node_ip.to_string().into();
 
         let messages = {
-            let exporter = AwsExporter::new(AwsExporterOpts {
-                export_name: "cast_messages",
+            let exporter = AwsExporter::new(AwsOpts {
+                export_prefix: "cast/messages",
+                export_name: "messages",
                 file_extension: "parquet",
-                bucket_name: format!("{bucket_name}/messages"),
-                s3_client: s3_client.clone(),
-                node_ip: node_ip.clone(),
-            });
-
-            Analytics::new(
-                gorgon::batcher::create_parquet_collector::<MessageInfo, _>(opts.clone(), exporter)
-                    .map_err(|e| Error::BatchCollector(e.to_string()))?,
-            )
-        };
-
-        let clients = {
-            let exporter = AwsExporter::new(AwsExporterOpts {
-                export_name: "cast_clients",
-                file_extension: "parquet",
-                bucket_name: format!("{bucket_name}/clients"),
+                bucket_name,
                 s3_client,
                 node_ip,
             });
 
-            Analytics::new(
-                gorgon::batcher::create_parquet_collector::<ClientInfo, _>(opts, exporter)
-                    .map_err(|e| Error::BatchCollector(e.to_string()))?,
-            )
+            let collector = ParquetWriter::<MessageInfo>::new(opts.clone(), exporter)?;
+            Analytics::new(collector)
+        };
+
+        let clients = {
+            let exporter = AwsExporter::new(AwsOpts {
+                export_prefix: "cast/clients",
+                export_name: "clients",
+                file_extension: "parquet",
+                bucket_name,
+                s3_client,
+                node_ip,
+            });
+
+            Analytics::new(ParquetWriter::<ClientInfo>::new(opts, exporter)?)
         };
 
         Ok(Self {

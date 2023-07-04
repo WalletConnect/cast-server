@@ -44,10 +44,11 @@ log = "0.4"
 # Analytics
 parquet = { git = "https://github.com/WalletConnect/arrow-rs.git", rev = "431abf5", default-features = false, features = ["flate2"] }
 parquet_derive = { git = "https://github.com/WalletConnect/arrow-rs.git", rev = "431abf5" }
-gorgon = { git = "https://github.com/WalletConnect/gorgon.git", tag = "v0.2.1" }
+gorgon = { git = "https://github.com/WalletConnect/gorgon.git", tag = "v0.5.1" }
 
-aws-config = "0.54"
-aws-sdk-s3 = "0.24"
+
+aws-config = "0.55"
+aws-sdk-s3 = "0.25"
 
 # Encoding
 base64 = "0.21.0"
@@ -70,7 +71,7 @@ rand_core = "0.5.0"
 ring = "0.16.20"
 jsonwebtoken = "8.2.0"
 data-encoding = "2.3.3"
-chrono = "0.4.23"
+chrono = { version = "0.4.23", features = ["serde"] }
 derive_more = "0.99.17"
 futures = "0.3.26"
 async-tungstenite = {version = "0.20.0", features = ["tokio", "tokio-native-tls"]}
