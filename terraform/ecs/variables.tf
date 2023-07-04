@@ -57,7 +57,7 @@ variable "cpu" {
 variable "memory" {
   type = number
 }
- 
+
 
 variable "analytics_geoip_db_bucket_name" {
   description = "The name of the bucket where the geoip database is stored"

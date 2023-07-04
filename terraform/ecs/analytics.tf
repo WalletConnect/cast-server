@@ -54,7 +54,7 @@ resource "aws_iam_policy" "geoip_bucket_access" {
         "Effect" : "Allow",
         "Action" : ["s3:CopyObject", "s3:GetObject", "s3:HeadObject"],
         "Resource" : ["arn:aws:s3:::${var.analytics_geoip_db_bucket_name}/*"]
-      }, 
+      },
     ]
   })
 }
