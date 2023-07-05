@@ -47,7 +47,7 @@ ENV                 RELEASE=${release:+--release}
 # is rolled out, which no longer requires the `protoc`, we'll be able to
 # get rid of this.
 RUN                 apt-get update \
-    && apt-get install -y --no-install-recommends protobuf-compiler lld llvm
+    && apt-get install -y --no-install-recommends protobuf-compiler 
 
 WORKDIR             /app
 # Cache dependancies
