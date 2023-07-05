@@ -123,7 +123,7 @@ async fn process_publish_jobs(
     request_id: uuid::Uuid,
     addr: &SocketAddr,
     state: &Arc<AppState>,
-    project_id: &String,
+    project_id: &str,
 ) -> Result<()> {
     let timer = std::time::Instant::now();
     let futures = jobs.into_iter().map(|job| {
@@ -153,7 +153,7 @@ async fn process_publish_jobs(
                 continent,
                 project_id: project_id.clone().into(),
                 msg_id: msg_id.into(),
-                topic: job.topic.clone().to_string().into(),
+                topic: job.topic.to_string().into(),
                 account: job.account.clone().into(),
             })
         };
