@@ -151,7 +151,7 @@ async fn process_publish_jobs(
                 region: region.map(|r| Arc::from(r.join(", "))),
                 country,
                 continent,
-                project_id: project_id.clone().into(),
+                project_id: project_id.into(),
                 msg_id: msg_id.into(),
                 topic: job.topic.to_string().into(),
                 account: job.account.clone().into(),

@@ -1,6 +1,5 @@
 use {
     crate::{
-        analytics,
         analytics::CastAnalytics,
         error::Result,
         metrics::Metrics,
