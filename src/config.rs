@@ -26,13 +26,9 @@ pub struct Configuration {
     pub telemetry_prometheus_port: Option<u16>,
 
     // Analytics
-    #[cfg(feature = "analytics")]
     pub analytics_s3_endpoint: Option<String>,
-    #[cfg(feature = "analytics")]
     pub analytics_export_bucket: String,
-    #[cfg(feature = "analytics")]
     pub analytics_geoip_db_bucket: Option<String>,
-    #[cfg(feature = "analytics")]
     pub analytics_geoip_db_key: Option<String>,
 }
 

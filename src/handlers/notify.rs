@@ -1,19 +1,13 @@
-#[cfg(feature = "analytics")]
-use {
-    crate::analytics::message_info::MessageInfo,
-    axum::extract::ConnectInfo,
-    relay_rpc::rpc::{msg_id::MsgId, Publish},
-    std::net::SocketAddr,
-};
 use {
     crate::{
+        analytics::message_info::MessageInfo,
         error,
         jsonrpc::{JsonRpcParams, JsonRpcPayload},
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0, Notification},
     },
     axum::{
-        extract::{Path, State},
+        extract::{ConnectInfo, Path, State},
         http::StatusCode,
         response::IntoResponse,
         Json,
@@ -24,9 +18,12 @@ use {
     log::warn,
     mongodb::bson::doc,
     opentelemetry::{Context, KeyValue},
-    relay_rpc::domain::Topic,
+    relay_rpc::{
+        domain::Topic,
+        rpc::{msg_id::MsgId, Publish},
+    },
     serde::{Deserialize, Serialize},
-    std::{collections::HashSet, sync::Arc, time::Duration},
+    std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration},
     tokio_stream::StreamExt,
     tracing::info,
 };
@@ -59,9 +56,9 @@ pub struct Response {
 }
 
 pub async fn handler(
-    #[cfg(feature = "analytics")] ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(cast_args): Json<NotifyBody>,
 ) -> Result<axum::response::Response> {
     // Request id for logs
@@ -102,11 +99,8 @@ pub async fn handler(
         state.http_relay_client.clone(),
         &mut response,
         request_id,
-        #[cfg(feature = "analytics")]
-        addr,
-        #[cfg(feature = "analytics")]
+        &addr,
         &state,
-        #[cfg(feature = "analytics")]
         &project_id,
     )
     .await?;
@@ -127,16 +121,15 @@ async fn process_publish_jobs(
     client: Arc<relay_client::http::Client>,
     response: &mut Response,
     request_id: uuid::Uuid,
-    #[cfg(feature = "analytics")] addr: SocketAddr,
-    #[cfg(feature = "analytics")] state: &Arc<AppState>,
-    #[cfg(feature = "analytics")] project_id: &str,
+    addr: &SocketAddr,
+    state: &Arc<AppState>,
+    project_id: &String,
 ) -> Result<()> {
     let timer = std::time::Instant::now();
     let futures = jobs.into_iter().map(|job| {
         let remaining_time = timer.elapsed();
         let timeout_duration = Duration::from_secs(NOTIFY_TIMEOUT) - remaining_time;
 
-        #[cfg(feature = "analytics")]
         {
             let (country, continent, region) = state
                 .analytics
@@ -158,7 +151,7 @@ async fn process_publish_jobs(
                 region: region.map(|r| Arc::from(r.join(", "))),
                 country,
                 continent,
-                project_id: project_id.into(),
+                project_id: project_id.clone().into(),
                 msg_id: msg_id.into(),
                 topic: job.topic.clone().to_string().into(),
                 account: job.account.clone().into(),

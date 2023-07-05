@@ -23,7 +23,6 @@ use {
     },
     tracing::Level,
 };
-#[cfg(feature = "analytics")]
 pub mod analytics;
 pub mod auth;
 pub mod config;
@@ -77,18 +76,16 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
         &config.project_id,
     ));
 
-    #[cfg(feature = "analytics")]
     let analytics = analytics::initialize(&config).await?;
 
     // Creating state
     let mut state = AppState::new(
+        analytics,
         config,
         db,
         keypair,
         wsclient.clone(),
         http_client,
-        #[cfg(feature = "analytics")]
-        analytics,
     )?;
 
     // Telemetry

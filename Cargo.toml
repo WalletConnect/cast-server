@@ -96,8 +96,4 @@ test-context = "0.1"
 [build-dependencies]
 build-info-build = "0.0"
 
-[features]
-analytics = []
-
-
 

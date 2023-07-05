@@ -1,5 +1,7 @@
 use {
     crate::{
+        analytics,
+        analytics::CastAnalytics,
         error::Result,
         metrics::Metrics,
         types::{ClientData, LookupEntry, WebhookInfo},
@@ -15,12 +17,8 @@ use {
     url::Url,
 };
 
-#[cfg(feature = "analytics")]
-use crate::analytics::CastAnalytics;
-
 pub struct AppState {
     pub config: Configuration,
-    #[cfg(feature = "analytics")]
     pub analytics: CastAnalytics,
     pub build_info: BuildInfo,
     pub metrics: Option<Metrics>,
@@ -34,17 +32,16 @@ build_info::build_info!(fn build_info);
 
 impl AppState {
     pub fn new(
+        analytics: CastAnalytics,
         config: Configuration,
         database: Arc<mongodb::Database>,
         keypair: Keypair,
         wsclient: Arc<relay_client::websocket::Client>,
         http_relay_client: Arc<relay_client::http::Client>,
-        #[cfg(feature = "analytics")] analytics: CastAnalytics,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 
         Ok(AppState {
-            #[cfg(feature = "analytics")]
             analytics,
             config,
             build_info: build_info.clone(),
@@ -94,7 +91,6 @@ impl AppState {
             )
             .await?;
 
-        #[cfg(feature = "analytics")]
         self.analytics
             .client(crate::analytics::client_info::ClientInfo {
                 project_id: project_id.into(),
