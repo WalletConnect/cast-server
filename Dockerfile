@@ -52,10 +52,10 @@ RUN                 apt-get update \
 WORKDIR             /app
 # Cache dependancies
 COPY --from=plan    /app/recipe.json recipe.json
-RUN                 cargo chef cook --recipe-path recipe.json ${RELEASE} --analytics analytics
+RUN                 cargo chef cook --recipe-path recipe.json ${RELEASE} 
 # Build the local binary
 COPY                . .
-RUN                 cargo build --bin cast-server ${RELEASE} --analytics analytics
+RUN                 cargo build --bin cast-server ${RELEASE} 
 # Certificate file required to use TLS with AWS DocumentDB.
 RUN                 wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
 ################################################################################
