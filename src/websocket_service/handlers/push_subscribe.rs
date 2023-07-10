@@ -104,7 +104,11 @@ pub async fn handle(
 
     // This noop message is making relay aware that this topics TTL should be
     // extended
-    info!("[{request_id}] Sending settle message");
+    info!(
+        "[{request_id}] Sending settle message on topic {}",
+        &push_topic
+    );
+
     client
         .publish(push_topic.into(), "", 4050, Duration::from_secs(300), false)
         .await?;
