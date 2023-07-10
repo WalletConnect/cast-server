@@ -84,7 +84,7 @@ pub async fn handle(
             response_topic.into(),
             base64_notification,
             4007,
-            Duration::from_secs(86400),
+            Duration::from_secs(300),
             false,
         )
         .await?;
