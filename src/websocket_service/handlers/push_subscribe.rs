@@ -84,7 +84,7 @@ pub async fn handle(
             response_topic.into(),
             base64_notification,
             4007,
-            Duration::from_secs(300),
+            Duration::from_secs(86400),
             false,
         )
         .await?;
@@ -106,13 +106,7 @@ pub async fn handle(
     // extended
     info!("[{request_id}] Sending settle message");
     client
-        .publish(
-            push_topic.into(),
-            "",
-            4050,
-            Duration::from_secs(86400),
-            false,
-        )
+        .publish(push_topic.into(), "", 4050, Duration::from_secs(300), false)
         .await?;
 
     state
