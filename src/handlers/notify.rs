@@ -147,6 +147,14 @@ async fn process_publish_jobs(
                 prompt: true,
             }
             .msg_id();
+
+            info!(
+                "[{request_id}] Sending notification for {account} on topic: {topic} with {msg_id}",
+                topic = job.topic,
+                account = job.account,
+                msg_id = msg_id
+            );
+
             state.analytics.message(MessageInfo {
                 region: region.map(|r| Arc::from(r.join(", "))),
                 country,

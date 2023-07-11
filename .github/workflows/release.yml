@@ -3,6 +3,12 @@ name: release
 on:
   workflow_dispatch:
   workflow_call:
+  push:
+    branches: ["master"]
+    paths-ignore:
+      - ".github/**"
+      - "terraform/**"
+      - "README.md"
 
 permissions:
   contents: write
