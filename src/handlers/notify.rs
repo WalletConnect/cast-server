@@ -163,6 +163,7 @@ async fn process_publish_jobs(
                 msg_id: msg_id.into(),
                 topic: job.topic.to_string().into(),
                 account: job.account.clone().into(),
+                sent_at: gorgon::time::now(),
             })
         };
 
