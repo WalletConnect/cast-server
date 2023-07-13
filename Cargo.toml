@@ -30,9 +30,7 @@ envy = "0.4"
 
 # Metrics & Traces
 prometheus-core = { package = "prometheus", version = "0.13" }
-opentelemetry = { version = "0.19", features = ["metrics", "rt-tokio"] }
-opentelemetry-prometheus = "0.11"
-opentelemetry-otlp = "0.11"
+
 
 # Logging
 tracing = "0.1"

@@ -17,7 +17,6 @@ use {
     futures::FutureExt,
     log::warn,
     mongodb::bson::doc,
-    opentelemetry::{Context, KeyValue},
     relay_rpc::{
         domain::Topic,
         rpc::{msg_id::MsgId, Publish},
@@ -26,6 +25,7 @@ use {
     std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration},
     tokio_stream::StreamExt,
     tracing::info,
+    wc::metrics::otel::{Context, KeyValue},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
