@@ -2,7 +2,6 @@ use {
     crate::{
         auth::SubscriptionAuth,
         handlers::subscribe_topic::ProjectData,
-        log::info,
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0, EnvelopeType1},
         websocket_service::{
@@ -18,6 +17,7 @@ use {
     mongodb::bson::doc,
     serde_json::{json, Value},
     std::{sync::Arc, time::Duration},
+    tracing::info,
     x25519_dalek::{PublicKey, StaticSecret},
 };
 

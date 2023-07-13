@@ -1,17 +1,11 @@
 use {
-    crate::{
-        config::Configuration,
-        log::info,
-        state::AppState,
-        websocket_service::WebsocketService,
-    },
+    crate::{config::Configuration, state::AppState, websocket_service::WebsocketService},
     axum::{
         http,
         routing::{delete, get, post, put},
         Router,
     },
     mongodb::options::{ClientOptions, ResolverConfig},
-    opentelemetry::{sdk::Resource, KeyValue},
     rand::prelude::*,
     relay_rpc::auth::ed25519_dalek::Keypair,
     std::{net::SocketAddr, sync::Arc, time::Duration},
@@ -21,7 +15,7 @@ use {
         cors::{Any, CorsLayer},
         trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     },
-    tracing::Level,
+    tracing::{info, Level},
 };
 pub mod analytics;
 pub mod auth;
@@ -29,8 +23,6 @@ pub mod config;
 pub mod error;
 pub mod handlers;
 pub mod jsonrpc;
-// TODO: do we need that?
-// pub mod log;
 mod metrics;
 mod networking;
 mod state;
@@ -81,7 +73,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
     ));
 
     // Creating state
-    let mut state = AppState::new(
+    let state = AppState::new(
         analytics,
         config,
         db,

@@ -1,8 +1,4 @@
-use {
-    crate::error::{Error, Result},
-    prometheus_core::TextEncoder,
-    wc::metrics::otel::metrics::{Counter, Histogram, UpDownCounter},
-};
+use wc::metrics::otel::metrics::{Counter, Histogram, UpDownCounter};
 
 #[derive(Clone)]
 pub struct Metrics {
