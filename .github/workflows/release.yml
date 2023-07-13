@@ -26,12 +26,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: "Install lld and llvm"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y lld llvm
-
-
       - name: "Cocogitto release"
         id: release
         uses: cocogitto/cocogitto-action@v3

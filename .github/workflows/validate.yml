@@ -27,13 +27,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install lld and llvm
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y lld llvm
-
       - name: Run integration tests
         run: cargo test --test integration
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
+
+          # Run validate swift
+      - name: Run validate swift
+        uses: "./.github/actions/validate-swift"
+        with:
+          notify-endpoint: ${{ inputs.environment == 'PROD' && 'cast.walletconnect.com' || 'staging.cast.walletconnect.com' }}
+          relay-endpoint: ${{ inputs.environment == 'PROD' && 'relay.walletconnect.com' || 'staging.relay.walletconnect.com' }}
