@@ -1,5 +1,10 @@
 use {
-    crate::{config::Configuration, state::AppState, websocket_service::WebsocketService},
+    crate::{
+        config::Configuration,
+        metrics::Metrics,
+        state::AppState,
+        websocket_service::WebsocketService,
+    },
     axum::{
         http,
         routing::{delete, get, post, put},
@@ -80,6 +85,7 @@ pub async fn bootstap(mut shutdown: broadcast::Receiver<()>, config: Configurati
         keypair,
         wsclient.clone(),
         http_client,
+        Some(Metrics::default()),
     )?;
 
     let port = state.config.port;
