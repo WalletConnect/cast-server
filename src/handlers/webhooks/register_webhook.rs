@@ -6,9 +6,11 @@ use {
         response::IntoResponse,
         Json,
     },
+    hyper::HeaderMap,
     log::info,
     mongodb::bson::doc,
     serde::Serialize,
+    serde_json::json,
     std::sync::Arc,
     uuid::Uuid,
 };
@@ -19,10 +21,30 @@ struct RegisterWebhookResponse {
 }
 
 pub async fn handler(
+    headers: HeaderMap,
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
     Json(webhook_info): Json<WebhookConfig>,
 ) -> Result<impl IntoResponse> {
+    match headers.get("Authorization") {
+        Some(project_secret) => {
+            if !state
+                .registry
+                .is_authenticated(&project_id, &project_secret.to_str().unwrap())
+                .await?
+            {
+                return Ok(Json(json!({
+                    "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
+                })).into_response());
+            };
+        }
+        None => {
+            return Ok(Json(json!({
+                "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
+            })).into_response());
+        }
+    };
+
     let request_id = uuid::Uuid::new_v4();
     info!("[{request_id}] Registering webhook for project: {project_id}");
     let webhook_id = Uuid::new_v4().to_string();
@@ -47,5 +69,6 @@ pub async fn handler(
     Ok((
         axum::http::StatusCode::CREATED,
         Json(RegisterWebhookResponse { id: webhook_id }),
-    ))
+    )
+        .into_response())
 }

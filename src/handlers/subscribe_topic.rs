@@ -1,6 +1,7 @@
 use {
     crate::state::AppState,
     axum::{
+        self,
         extract::{Path, State},
         response::IntoResponse,
         Json,
@@ -36,6 +37,16 @@ pub async fn handler(
 
     match headers.get("Authorization") {
         Some(project_secret) => {
+            if !state
+                .registry
+                .is_authenticated(&project_id, &project_secret.to_str().unwrap())
+                .await?
+            {
+                return Ok(Json(json!({
+                    "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
+                })).into_response());
+            };
+
             let mut hasher = sha2::Sha256::new();
             hasher.update(project_secret.as_bytes());
             hasher.update(project_id.as_bytes());

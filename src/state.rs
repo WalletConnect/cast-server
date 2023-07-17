@@ -3,6 +3,7 @@ use {
         analytics::CastAnalytics,
         error::Result,
         metrics::Metrics,
+        registry::Registry,
         types::{ClientData, LookupEntry, WebhookInfo},
         Configuration,
     },
@@ -25,6 +26,7 @@ pub struct AppState {
     pub keypair: Keypair,
     pub wsclient: Arc<relay_client::websocket::Client>,
     pub http_relay_client: Arc<relay_client::http::Client>,
+    pub registry: Arc<Registry>,
 }
 
 build_info::build_info!(fn build_info);
@@ -38,6 +40,7 @@ impl AppState {
         wsclient: Arc<relay_client::websocket::Client>,
         http_relay_client: Arc<relay_client::http::Client>,
         metrics: Option<Metrics>,
+        registry: Arc<Registry>,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 
@@ -50,6 +53,7 @@ impl AppState {
             keypair,
             wsclient,
             http_relay_client,
+            registry,
         })
     }
 

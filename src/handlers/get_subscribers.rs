@@ -7,14 +7,36 @@ use {
         Json,
     },
     futures::TryStreamExt,
+    hyper::HeaderMap,
     log::info,
+    serde_json::json,
     std::sync::Arc,
 };
 
 pub async fn handler(
+    headers: HeaderMap,
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Result<axum::response::Response> {
+    match headers.get("Authorization") {
+        Some(project_secret) => {
+            if !state
+                .registry
+                .is_authenticated(&project_id, &project_secret.to_str().unwrap())
+                .await?
+            {
+                return Ok(Json(json!({
+                    "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
+                })).into_response());
+            };
+        }
+        None => {
+            return Ok(Json(json!({
+                "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
+            })).into_response());
+        }
+    };
+
     info!("Getting subscribers for project: {}", project_id);
 
     let mut cursor = state

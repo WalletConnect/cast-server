@@ -15,6 +15,7 @@ use {
     base64::Engine,
     error::Result,
     futures::FutureExt,
+    hyper::HeaderMap,
     log::warn,
     mongodb::bson::doc,
     relay_rpc::{
@@ -22,6 +23,7 @@ use {
         rpc::{msg_id::MsgId, Publish},
     },
     serde::{Deserialize, Serialize},
+    serde_json::json,
     std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration},
     tokio_stream::StreamExt,
     tracing::info,
@@ -56,11 +58,31 @@ pub struct Response {
 }
 
 pub async fn handler(
+    headers: HeaderMap,
     Path(project_id): Path<String>,
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(cast_args): Json<NotifyBody>,
 ) -> Result<axum::response::Response> {
+    match headers.get("Authorization") {
+        Some(project_secret) => {
+            if !state
+                .registry
+                .is_authenticated(&project_id, &project_secret.to_str().unwrap())
+                .await?
+            {
+                return Ok(Json(json!({
+                    "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
+                })).into_response());
+            };
+        }
+        None => {
+            return Ok(Json(json!({
+                "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
+            })).into_response());
+        }
+    };
+
     // Request id for logs
     let request_id = uuid::Uuid::new_v4();
     let timer = std::time::Instant::now();
