@@ -23,7 +23,7 @@ pub async fn handler(
         Some(project_secret) => {
             if !state
                 .registry
-                .is_authenticated(&project_id, &project_secret.to_str().unwrap())
+                .is_authenticated(&project_id, project_secret.to_str().unwrap())
                 .await?
             {
                 return Ok(Json(json!({

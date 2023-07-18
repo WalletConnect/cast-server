@@ -32,6 +32,7 @@ pub struct AppState {
 build_info::build_info!(fn build_info);
 
 impl AppState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         analytics: CastAnalytics,
         config: Configuration,
