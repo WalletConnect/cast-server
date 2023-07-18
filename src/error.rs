@@ -128,6 +128,9 @@ pub enum Error {
 
     #[error(transparent)]
     InvalidHeaderValue(#[from] hyper::header::InvalidHeaderValue),
+
+    #[error(transparent)]
+    ToStrError(#[from] hyper::header::ToStrError),
 }
 
 impl IntoResponse for Error {
