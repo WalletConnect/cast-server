@@ -59,8 +59,8 @@ pub struct Response {
 pub async fn handler(
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    Json(cast_args): Json<NotifyBody>,
     AuthedProjectId(project_id, _): AuthedProjectId,
+    Json(cast_args): Json<NotifyBody>,
 ) -> Result<axum::response::Response> {
     // Request id for logs
     let request_id = uuid::Uuid::new_v4();
