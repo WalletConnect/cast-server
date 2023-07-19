@@ -1,16 +1,16 @@
 use {
     super::WebhookConfig,
-    crate::{error::Result, handlers::webhooks::validate_url, state::AppState, types::WebhookInfo},
-    axum::{
-        extract::{Path, State},
-        response::IntoResponse,
-        Json,
+    crate::{
+        error::Result,
+        extractors::AuthedProjectId,
+        handlers::webhooks::validate_url,
+        state::AppState,
+        types::WebhookInfo,
     },
-    hyper::HeaderMap,
+    axum::{extract::State, response::IntoResponse, Json},
     log::info,
     mongodb::bson::doc,
     serde::Serialize,
-    serde_json::json,
     std::sync::Arc,
     uuid::Uuid,
 };
@@ -21,30 +21,10 @@ struct RegisterWebhookResponse {
 }
 
 pub async fn handler(
-    headers: HeaderMap,
-    Path(project_id): Path<String>,
+    AuthedProjectId(project_id, _): AuthedProjectId,
     State(state): State<Arc<AppState>>,
     Json(webhook_info): Json<WebhookConfig>,
 ) -> Result<impl IntoResponse> {
-    match headers.get("Authorization") {
-        Some(project_secret) => {
-            if !state
-                .registry
-                .is_authenticated(&project_id, project_secret.to_str()?)
-                .await?
-            {
-                return Ok(Json(json!({
-                    "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
-                })).into_response());
-            };
-        }
-        None => {
-            return Ok(Json(json!({
-                "reason": "Unauthorized. Please make sure to include project secret in Authorization header. "
-            })).into_response());
-        }
-    };
-
     let request_id = uuid::Uuid::new_v4();
     info!("[{request_id}] Registering webhook for project: {project_id}");
     let webhook_id = Uuid::new_v4().to_string();
