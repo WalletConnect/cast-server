@@ -29,7 +29,8 @@ concurrency:
 jobs:
   tasks:
     name: "[${{ matrix.os }}/rust-${{matrix.cargo.rust}}] ${{ matrix.cargo.name }}"
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ubuntu-runners
     services:
       mongodb:
         image: mongo
@@ -90,14 +91,6 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Install lld and llvm
-        run: sudo apt-get install -y lld llvm
-
-      # TODO: Remove once https://crates.io/crates/opentelemetry-otlp is updated
-      # and no longer has a build requirement of `protoc``.
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-
       # Rebuild cache
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@3bb3a9a087029c7bc392586cdc88cb6f66b9c6ef
@@ -137,8 +130,8 @@ jobs:
       - name: "Stop sccache server"
         run: sccache --stop-server || true
 
-  # kick-off-release:
-  #   needs: [tasks]
-  #   if: github.event_name != 'pull_request' && github.actor != 'github-actions[bot]'
-  #   uses: ./.github/workflows/release.yml
-  #   secrets: inherit
+  kick-off-release:
+    needs: [tasks]
+    if: github.event_name != 'pull_request' && github.actor != 'github-actions[bot]'
+    uses: ./.github/workflows/release.yml
+    secrets: inherit

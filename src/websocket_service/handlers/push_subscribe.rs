@@ -2,7 +2,6 @@ use {
     crate::{
         auth::SubscriptionAuth,
         handlers::subscribe_topic::ProjectData,
-        log::info,
         state::AppState,
         types::{ClientData, Envelope, EnvelopeType0, EnvelopeType1},
         websocket_service::{
@@ -18,6 +17,7 @@ use {
     mongodb::bson::doc,
     serde_json::{json, Value},
     std::{sync::Arc, time::Duration},
+    tracing::info,
     x25519_dalek::{PublicKey, StaticSecret},
 };
 
@@ -85,14 +85,21 @@ pub async fn handle(
         sym_key: push_key.clone(),
         scope: sub_auth.scp.split(' ').map(|s| s.into()).collect(),
     };
+
+    let push_topic = sha256::digest(&*hex::decode(&push_key)?);
+
+    // This noop message is making relay aware that this topics TTL should be
+    // extended
     info!(
-        "[{request_id}] Registering account: {:?} with topic: {} at project: {}. Scope: {:?}",
-        &client_data.id,
-        &sha256::digest(&*hex::decode(&push_key)?),
-        &project_data.id,
-        &client_data.scope
+        "[{request_id}] Sending settle message on topic {}",
+        &push_topic
     );
 
+    // Registers account and subscribes to topic
+    info!(
+        "[{request_id}] Registering account: {:?} with topic: {} at project: {}. Scope: {:?}",
+        &client_data.id, &push_topic, &project_data.id, &client_data.scope
+    );
     state
         .register_client(
             &project_data.id,
@@ -100,6 +107,22 @@ pub async fn handle(
             &url::Url::parse(&state.config.relay_url)?,
         )
         .await?;
+
+    // Send noop to extend ttl of relay's mapping
+    client
+        .publish(
+            push_topic.clone().into(),
+            "",
+            4050,
+            Duration::from_secs(300),
+            false,
+        )
+        .await?;
+
+    info!(
+        "[{request_id}] Settle message sent on topic {}",
+        &push_topic
+    );
 
     client
         .publish(
@@ -110,5 +133,6 @@ pub async fn handle(
             false,
         )
         .await?;
+
     Ok(())
 }

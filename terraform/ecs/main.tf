@@ -74,9 +74,9 @@ resource "aws_ecs_task_definition" "app_task_definition" {
         { name = "KEYPAIR_SEED", value = var.keypair_seed },
         { name = "OTEL_TRACES_SAMPLER_ARG", value = tostring(var.telemetry_sample_ratio) },
         { name = "ANALYTICS_ENABLED", value = "true" },
-        { name = "ANALYTICS_EXPORT_BUCKET", value = var.analytics_datalake_bucket_name },
+        { name = "ANALYTICS_EXPORT_BUCKET", value = var.data_lake_bucket_name },
         { name = "ANALYTICS_GEOIP_DB_BUCKET", value = var.analytics_geoip_db_bucket_name },
-        { name = "ANALYTICS_GEOIP_DB_KEY", value = var.analytics_geoip_db_key },
+        { name = "ANALYTICS_GEOIP_DB_KEY", value = var.geoip_db_key },
         { name = "PROJECT_ID", value = var.project_id },
         { name = "RELAY_URL", value = var.relay_url },
         { name = "CAST_URL", value = var.cast_url },
@@ -131,6 +131,7 @@ resource "aws_ecs_service" "app_service" {
   task_definition = aws_ecs_task_definition.app_task_definition.arn
   launch_type     = "FARGATE"
   desired_count   = 1
+  propagate_tags  = "TASK_DEFINITION"
 
   # Wait for the service deployment to succeed
   wait_for_steady_state = true

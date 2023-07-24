@@ -216,10 +216,11 @@ PROJECT_ID to be set",
         .await
         .unwrap();
 
+    let _consume_4050_noop = rx.recv().await.unwrap();
     let resp = rx.recv().await.unwrap();
     let RelayClientEvent::Message(msg) = resp else {
-            panic!("Expected message, got {:?}", resp);
-        };
+        panic!("Expected message, got {:?}", resp);
+    };
 
     let mut cipher =
         ChaCha20Poly1305::new(GenericArray::from_slice(&hex::decode(notify_key).unwrap()));

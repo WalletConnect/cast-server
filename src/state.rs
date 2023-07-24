@@ -1,5 +1,6 @@
 use {
     crate::{
+        analytics::CastAnalytics,
         error::Result,
         metrics::Metrics,
         types::{ClientData, LookupEntry, WebhookInfo},
@@ -17,6 +18,7 @@ use {
 
 pub struct AppState {
     pub config: Configuration,
+    pub analytics: CastAnalytics,
     pub build_info: BuildInfo,
     pub metrics: Option<Metrics>,
     pub database: Arc<mongodb::Database>,
@@ -29,18 +31,21 @@ build_info::build_info!(fn build_info);
 
 impl AppState {
     pub fn new(
+        analytics: CastAnalytics,
         config: Configuration,
         database: Arc<mongodb::Database>,
         keypair: Keypair,
         wsclient: Arc<relay_client::websocket::Client>,
         http_relay_client: Arc<relay_client::http::Client>,
+        metrics: Option<Metrics>,
     ) -> crate::Result<AppState> {
         let build_info: &BuildInfo = build_info();
 
         Ok(AppState {
+            analytics,
             config,
             build_info: build_info.clone(),
-            metrics: None,
+            metrics,
             database,
             keypair,
             wsclient,
@@ -86,6 +91,14 @@ impl AppState {
             )
             .await?;
 
+        self.analytics
+            .client(crate::analytics::client_info::ClientInfo {
+                project_id: project_id.into(),
+                account: client_data.id.clone().into(),
+                topic: topic.clone().into(),
+                registered_at: gorgon::time::now(),
+            });
+
         self.wsclient.subscribe(topic.into()).await?;
 
         self.notify_webhook(
@@ -96,10 +109,6 @@ impl AppState {
         .await?;
 
         Ok(())
-    }
-
-    pub fn set_metrics(&mut self, metrics: Metrics) {
-        self.metrics = Some(metrics);
     }
 
     pub async fn notify_webhook(

@@ -31,7 +31,7 @@ FROM                chef AS plan
 WORKDIR             /app
 COPY                Cargo.lock Cargo.toml ./
 COPY                src ./src
-RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo chef prepare --recipe-path recipe.json
+RUN                 cargo chef prepare --recipe-path recipe.json
 
 ################################################################################
 #
@@ -43,19 +43,13 @@ FROM                chef AS build
 ARG                 release
 ENV                 RELEASE=${release:+--release}
 
-# This is a build requirement of `opentelemetry-otlp`. Once the new version
-# is rolled out, which no longer requires the `protoc`, we'll be able to
-# get rid of this.
-RUN                 apt-get update \
-    && apt-get install -y --no-install-recommends protobuf-compiler lld llvm
-
 WORKDIR             /app
 # Cache dependancies
 COPY --from=plan    /app/recipe.json recipe.json
-RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo chef cook --recipe-path recipe.json ${RELEASE}
+RUN                 cargo chef cook --recipe-path recipe.json ${RELEASE} 
 # Build the local binary
 COPY                . .
-RUN                 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --bin cast-server ${RELEASE}
+RUN                 cargo build --bin cast-server ${RELEASE} 
 # Certificate file required to use TLS with AWS DocumentDB.
 RUN                 wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
 ################################################################################
