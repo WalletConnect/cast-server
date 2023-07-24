@@ -161,16 +161,18 @@ impl AppState {
     }
 }
 
-fn is_valid_account(account: &str) -> bool {
-    // chain_id:    namespace + ":" + reference
+lazy_static! {
+     // chain_id:    namespace + ":" + reference
     // namespace:   [-a-z0-9]{3,8}
     // reference:   [-_a-zA-Z0-9]{1,32}
     // account_id:  chain_id + ":" + address
     // address:     any chain address
     // Unwrap is ok as this is a static regex
-    let regex = regex::Regex::new(r"^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}:.{1,100}$").unwrap();
+    static ref VALID_ACCOUNT_REGEX: regex::Regex  = regex::Regex::new(r"^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}:.{1,100}$").unwrap();
+}
 
-    regex.is_match(account)
+fn is_valid_account(account: &str) -> bool {
+    VALID_ACCOUNT_REGEX.is_match(account)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
