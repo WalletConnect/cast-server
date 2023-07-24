@@ -72,19 +72,15 @@ impl Registry {
     pub fn new(url: &str, auth_token: &str, config: &Configuration) -> Result<Self> {
         let client = Arc::new(RegistryHttpClient::new(url, auth_token)?);
 
-        if let Some(redis_addr) = &config.auth_redis_addr() {
-            let redis = Arc::new(Redis::new(redis_addr, config.redis_pool_size as usize)?);
-
-            Ok(Self {
-                client,
-                cache: Some(redis),
-            })
+        let cache = if let Some(redis_addr) = &config.auth_redis_addr() {
+            Some(Arc::new(Redis::new(redis_addr, config.redis_pool_size as usize)?))
         } else {
-            Ok(Self {
-                client,
-                cache: None,
-            })
-        }
+            None
+        };
+        Ok(Self {
+            client,
+            cache,
+        })
     }
 
     pub async fn is_authenticated(&self, id: &str, secret: &str) -> Result<bool> {
