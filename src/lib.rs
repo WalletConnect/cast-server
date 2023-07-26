@@ -38,6 +38,9 @@ pub mod types;
 pub mod websocket_service;
 pub mod wsclient;
 
+#[macro_use]
+extern crate lazy_static;
+
 build_info::build_info!(fn build_info);
 
 pub type Result<T> = std::result::Result<T, error::Error>;
