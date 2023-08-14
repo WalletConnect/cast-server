@@ -1,5 +1,7 @@
 # Cast Server
 
+**Notice**: This repo has been deprecated in-favor of [Notify Server](https://github.com/WalletConnect/notify-server).
+
 
 [Cast Server Specs](https://docs.walletconnect.com/2.0/specs/servers/cast/cast-server-api)
 
